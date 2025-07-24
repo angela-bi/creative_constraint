@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+
+<!-- 1. Replace this with the title of your extension. This will Show in the extensions menu-->
+<_name>Creative Constraints</_name>
+
+<!-- 2. Fill this in. It ensures that your extension has a unique ID -->
+<id>AngelaBi.Cornell.CreativeConstraints</id>
+
+<!-- 3. Show the relative path to your extension. For example, `~/.config/inkscape/extensions/template.py` would be `template.py`-->
+<dependency type="executable" location="extensions">creative_constraint.py</dependency>
+
+<effect>
+    <object-type>all</object-type>
+    <effects-menu>
+
+    <!-- 4. Where is your extension located? (You can nest menus) -->
+    <submenu name="submenu"/>
+
+    </effects-menu>
+</effect>
+<script>
+
+    <!-- 5. Same as #4 -->
+    <command reldir="extensions" interpreter="python">creative_constraint.py</command>
+
+</script>
+</inkscape-extension>
