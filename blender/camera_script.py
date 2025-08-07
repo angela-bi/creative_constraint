@@ -10,7 +10,7 @@ arr = []
 while True:
     ret, frame = cap.read()
     if not ret:
-        print("error reading frame")
+        print("failed to read frame.")
         break
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
