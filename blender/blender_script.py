@@ -57,6 +57,7 @@ class color_channel_settings(bpy.types.PropertyGroup):
         size=checkboxes,
         default = (False,) * checkboxes
     )
+    
 
 ##################
 # OPERATORS
@@ -92,7 +93,7 @@ class BRUSH_OT_sound_color(bpy.types.Operator):
             
             # logic for changing one channel
             channel_choice = context.scene.color_channel.channel_list
-            brush = bpy.data.brushes.get("Tint")
+            brush = bpy.data.brushes.get("Pencil")
             
             if not brush:
                 self.report({'WARNING'}, "Brush Tint not found.")
@@ -157,12 +158,13 @@ class BRUSH_OT_camera_color(bpy.types.Operator):
             cap.release()
             cv2.destroyAllWindows()
 
+            print('brightness arr:', arr)
             normalized_arr = (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
             sampled_brightness = np.random.choice(normalized_arr)
             
             # logic for changing one channel
             channel_choice = context.scene.color_channel.channel_list
-            brush = bpy.data.brushes.get("Tint")
+            brush = bpy.data.brushes.get("Pencil")
             
             if not brush:
                 self.report({'WARNING'}, "Brush Tint not found.")
