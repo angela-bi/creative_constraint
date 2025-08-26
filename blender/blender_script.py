@@ -49,10 +49,20 @@ def safe_sample(array):
     # returns a random sample of the array used
     return float(np.random.choice(array))
 
+def change_rgb(rgb_tuple, new_val):
+    # takes in a tuple of booleans (r,g,b) and returns a tuple with the values marked "true" changed
+    r,g,b = rgb_tuple
+    if red == True:
+        r = sampled_brightness
+    if green == True:
+        g = sampled_brightness
+    if blue == True:
+        b = sampled_brightness
+    return (r,g,b)
 
 
 ##################
-# UI ELEMENTS
+# SETTINGS/OPTION CLASSES
 ##################
 
 class InputMappingSettings(bpy.types.PropertyGroup):
@@ -105,8 +115,8 @@ class color_channel_settings(bpy.types.PropertyGroup):
 # OPERATORS
 ##################
 
-class MAPPING_OT(bpy.types.Operator):
-    bl_idname = "mapping_operator"
+class BRUSH_MAPPING_OT(bpy.types.Operator):
+    bl_idname = "brush.mapping_operator"
     bl_label = "Mapping Operator"
     bl_description = "Maps selected input to output"
     bl_options = {'REGISTER', 'UNDO'}
@@ -116,122 +126,72 @@ class MAPPING_OT(bpy.types.Operator):
         scene = context.scene
         input_mapping = scene.input_mapping
         output_mapping = scene.output_mapping
+        # these contain the input and output the user has selected
         color_channel = scene.color_channel
         audio_rig = scene.audio_rig
         
+        # current operators modify the brush
+        brush = bpy.data.brushes.get("Pencil") # brush should be a choice as well...
+        
         if input_mapping == "AUDIO":
-            if output_mapping == "COLOR":
-                color_channel = context.scene.color_channel
-                red = color_channel.channel_list[0]
-                green = color_channel.channel_list[1]
-                blue = color_channel.channel_list[2]
-                try:
-                    duration = 1
-                    sample_rate = 44100
-                    audio = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1)
-                    sd.wait()
-                    audio = np.array(audio).flatten()
-                    print('audio:', audio)
-
-                    normalized_audio = normalize(audio)
-
-                    r, g, b = brush.color
-                    print("old brush rgb", r, g, b)
-                    new_value = safe_sample(normalized_audio)
-                    
-                    if red == True:
-                        r = new_value
-                    if green == True:
-                        g = new_value
-                    if blue == True:
-                        b = new_value
-                    
-                    print("new brush rgb", r, g, b)
-                    brush.color = (r, g, b)
-                    return {'FINISHED'}
-                except Exception as e:
-                    self.report({'ERROR'}, f"Error: {str(e)}")
-            elif output_mapping == "SIZE":
+            try:
+                duration = 1
+                sample_rate = 44100
+                audio = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1)
+                sd.wait()
+                audio = np.array(audio).flatten()
+                print('audio:', audio)
+                normalized_audio = normalize(audio)
+                new_value = safe_sample(normalized_audio)
+                
+            except Exception as e:
+                self.report({'ERROR'}, f"Error: {str(e)}")
+                
                 
         elif input_mapping == "CAMERA":
-            if output_mapping == "COLOR":
+            try:
+                cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
+                cv2.namedWindow("Webcam Brightness Tracker", cv2.WINDOW_NORMAL)
+                arr = []
                 
-            elif output_mapping == "SIZE":
-                
-        else:
-            print("either input or output mapping input is invalid")
+                while True:
+                    ret, frame = cap.read()
+                    if not ret:
+                        print("failed to read frame.")
+                        break
+
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    brightness = np.mean(gray)
+                    arr.append(brightness)
+
+                    cv2.putText(frame, f"Brightness: {brightness:.2f}", (10, 30),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+                    cv2.imshow("Webcam Brightness Tracker", frame)
+
+                    key = cv2.waitKey(1)
+                    if key == ord('q'):
+                        print("exiting")
+                        break
+                    
+            except Exception as e:
+                self.report({'ERROR'}, f"Error: {str(e)}")
+
+        if output_mapping == "COLOR":
+            color_channel = context.scene.color_channel
+            red = color_channel.channel_list[0]
+            green = color_channel.channel_list[1]
+            blue = color_channel.channel_list[2]
             
-        
+            print("old brush rgb", brush.color)
             
-            
-class BRUSH_OT_camera_color(bpy.types.Operator):
-    bl_idname = "brush.change_brush_color_camera"
-    bl_label = "Change Brush Color (Camera)"
-    bl_description = "Use camera input to set a random brush color"
-    bl_options = {'REGISTER', 'UNDO'}
-    
-    def execute(self, context):
-        color_channel = context.scene.color_channel
-        red = color_channel.channel_list[0]
-        green = color_channel.channel_list[1]
-        blue = color_channel.channel_list[2]
-        try:
-            cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
-            cv2.namedWindow("Webcam Brightness Tracker", cv2.WINDOW_NORMAL)
-            arr = []
+            brush.color = change_rgb((red, green, blue), new_value)
+            print("new brush rgb", brush.color)
 
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    print("failed to read frame.")
-                    break
-
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                brightness = np.mean(gray)
-                arr.append(brightness)
-
-                cv2.putText(frame, f"Brightness: {brightness:.2f}", (10, 30),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
-                cv2.imshow("Webcam Brightness Tracker", frame)
-
-                key = cv2.waitKey(1)
-                if key == ord('q'):
-                    print("exiting")
-                    break
-
-            cap.release()
-            cv2.destroyAllWindows()
-
-            print('brightness arr:', arr)
-            normalized_arr = (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
-            sampled_brightness = np.random.choice(normalized_arr)
-            
-            # logic for changing one channel
-            channel_choice = context.scene.color_channel.channel_list
-            brush = bpy.data.brushes.get("Pencil")
-            
-            if not brush:
-                self.report({'WARNING'}, "Brush Tint not found.")
-                return {'CANCELLED'}
-
-            r, g, b = brush.color
-            print("old brush rgb", r, g, b)
-            
-            if red == True:
-                r = sampled_brightness
-            if green == True:
-                g = sampled_brightness
-            if blue == True:
-                b = sampled_brightness
-            
-            print("new brush rgb", r, g, b)
-            brush.color = (r, g, b)
-
-            return {'FINISHED'}
-
-        except Exception as e:
-            self.report({'ERROR'}, f"Error: {str(e)}")
+        elif output_mapping == "SIZE":
+            print("old brush size", brush.size)
+            brush.size = new_value
+            print("new brush size", brush.size)
                
 
 ##################
@@ -276,18 +236,9 @@ class VIEW3D_PT_creative_constraints(bpy.types.Panel):  # class naming conventio
             for idx in range(len(color_channel.channel_list)):
                 layout.prop(color_channel, "channel_list", index=idx, text=checkbox_names[idx])
                 
-            row = layout.row()
-            layout.operator("brush.change_brush_color_camera", text="Change Brush Color (Camera)")
-            
-        elif output_mapping.output_source == 'SIZE':
-            row = layout.row()
-            row.label(text="Channels:")
-            # color_channel, "channel_list"
-            for idx in range(len(color_channel.channel_list)):
-                layout.prop(color_channel, "channel_list", index=idx, text=checkbox_names[idx])
                 
-            row = layout.row()
-            layout.operator("brush.change_brush_color", text="Change Brush Color")
+        row = layout.row()
+        layout.operator("brush.mapping_operator", text="Map")
             
             
             
@@ -298,8 +249,7 @@ classes = (
     OutputMappingSettings,
     AudioRigSettings,
     color_channel_settings,
-    BRUSH_OT_sound_color,
-    BRUSH_OT_camera_color,
+    BRUSH_MAPPING_OT,
     VIEW3D_PT_creative_constraints,
 )
         
