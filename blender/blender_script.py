@@ -6,7 +6,12 @@ import sys
 sys.path.append("/Users/angelabi/.local/lib/python3.11/site-packages") # replace with own path
 import cv2
 
-# parts of code from https://github.com/F1dg3tXD/MAD/blob/main/MAD_OSX/mad.py and https://github.com/CGArtPython/blender_plus_python/blob/main/add-ons/simple_custom_panel/simple_custom_panel.py
+##################
+# SOURCES
+##################
+# https://github.com/F1dg3tXD/MAD/blob/main/MAD_OSX/mad.py
+# https://github.com/CGArtPython/blender_plus_python/blob/main/add-ons/simple_custom_panel/simple_custom_panel.py
+
 
 ##################
 # HELPER FUNCTIONS 
@@ -19,6 +24,32 @@ def get_microphone_items(self, context):
             label = f"{i}:{device['name']}"
             items.append((label, device["name"], ""))
     return items
+
+# todo: implement camera source selection for opencv
+
+def list_gp_layers(obj=None):
+    if obj is None:
+        obj = bpy.context.active_object
+    if not obj or obj.type != 'GPENCIL':
+        print("No active Grease Pencil object selected.")
+        return
+    gp_data = obj.data
+    print(f"Grease Pencil layers in '{obj.name}':")
+    for i, layer in enumerate(gp_data.layers):
+        print(f"  Layer {i}: {layer.info}")
+        print(f"    - Visible: {layer.hide is False}")
+        print(f"    - Locked: {layer.lock}")
+        print(f"    - Frames: {[frame.frame_number for frame in layer.frames]}")
+        
+def normalize(array):
+    # returns array but normalized
+    return (array - np.min(array)) / (np.max(array) - np.min(array))
+        
+def safe_sample(array):
+    # returns a random sample of the array used
+    return float(np.random.choice(array))
+
+
 
 ##################
 # UI ELEMENTS
@@ -33,6 +64,17 @@ class InputMappingSettings(bpy.types.PropertyGroup):
             ('CAMERA', "Camera", "Use webcam input"),
         ],
         default='AUDIO'
+    )
+    
+class OutputMappingSettings(bpy.types.PropertyGroup):
+    output_source: bpy.props.EnumProperty(
+        name="Output Source",
+        description="Choose output type",
+        items=[
+            ('COLOR', "Brush Color", "Change brush color"),
+            ('SIZE', "Brush Size", "Change brush size"),
+        ],
+        default='COLOR'
     )
 
 class AudioRigSettings(bpy.types.PropertyGroup):
@@ -63,60 +105,63 @@ class color_channel_settings(bpy.types.PropertyGroup):
 # OPERATORS
 ##################
 
-# button for changing color based on sound level
-class BRUSH_OT_sound_color(bpy.types.Operator):
-    bl_idname = "brush.change_brush_color"
-    bl_label = "Change Brush Color"
-    bl_description = "Use audio input to set a random brush color"
+class MAPPING_OT(bpy.types.Operator):
+    bl_idname = "mapping_operator"
+    bl_label = "Mapping Operator"
+    bl_description = "Maps selected input to output"
     bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
-        color_channel = context.scene.color_channel
-        red = color_channel.channel_list[0]
-        green = color_channel.channel_list[1]
-        blue = color_channel.channel_list[2]
-        try:
-            duration = 1 # TODO: make this toggle-able
-            sample_rate = 44100
-            audio = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1)
-            sd.wait()
-            audio = np.array(audio).flatten()
-            print('audio:', audio)
-            normalized_audio = (audio - np.min(audio)) / (np.max(audio) - np.min(audio))
-            print('normalized audio:', normalized_audio)
+        layout = self.layout
+        scene = context.scene
+        input_mapping = scene.input_mapping
+        output_mapping = scene.output_mapping
+        color_channel = scene.color_channel
+        audio_rig = scene.audio_rig
+        
+        if input_mapping == "AUDIO":
+            if output_mapping == "COLOR":
+                color_channel = context.scene.color_channel
+                red = color_channel.channel_list[0]
+                green = color_channel.channel_list[1]
+                blue = color_channel.channel_list[2]
+                try:
+                    duration = 1
+                    sample_rate = 44100
+                    audio = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1)
+                    sd.wait()
+                    audio = np.array(audio).flatten()
+                    print('audio:', audio)
 
-            rms = np.linalg.norm(audio) / np.sqrt(len(audio))
-            print("RMS Volume:", rms)
+                    normalized_audio = normalize(audio)
 
-            def safe_sample():
-                return float(np.random.choice(normalized_audio))
+                    r, g, b = brush.color
+                    print("old brush rgb", r, g, b)
+                    new_value = safe_sample(normalized_audio)
+                    
+                    if red == True:
+                        r = new_value
+                    if green == True:
+                        g = new_value
+                    if blue == True:
+                        b = new_value
+                    
+                    print("new brush rgb", r, g, b)
+                    brush.color = (r, g, b)
+                    return {'FINISHED'}
+                except Exception as e:
+                    self.report({'ERROR'}, f"Error: {str(e)}")
+            elif output_mapping == "SIZE":
+                
+        elif input_mapping == "CAMERA":
+            if output_mapping == "COLOR":
+                
+            elif output_mapping == "SIZE":
+                
+        else:
+            print("either input or output mapping input is invalid")
             
-            # logic for changing one channel
-            channel_choice = context.scene.color_channel.channel_list
-            brush = bpy.data.brushes.get("Pencil")
-            
-            if not brush:
-                self.report({'WARNING'}, "Brush Tint not found.")
-                return {'CANCELLED'}
-
-            r, g, b = brush.color
-            print("old brush rgb", r, g, b)
-            new_value = safe_sample()
-            
-            if red == True:
-                r = new_value
-            if green == True:
-                g = new_value
-            if blue == True:
-                b = new_value
-            
-            print("new brush rgb", r, g, b)
-            brush.color = (r, g, b)
-
-            return {'FINISHED'}
-
-        except Exception as e:
-            self.report({'ERROR'}, f"Error: {str(e)}")
+        
             
             
 class BRUSH_OT_camera_color(bpy.types.Operator):
@@ -206,6 +251,7 @@ class VIEW3D_PT_creative_constraints(bpy.types.Panel):  # class naming conventio
         layout = self.layout
         scene = context.scene
         input_mapping = scene.input_mapping
+        output_mapping = scene.output_mapping
         color_channel = scene.color_channel
         audio_rig = scene.audio_rig
         
@@ -217,17 +263,13 @@ class VIEW3D_PT_creative_constraints(bpy.types.Panel):  # class naming conventio
             layout.prop(audio_rig, "mic_list")
             layout.prop(audio_rig, "volume_scale")
             layout.prop(audio_rig, "recording_length")
-            
-            row = layout.row()
-            row.label(text="Channels:")
-            # color_channel, "channel_list"
-            for idx in range(len(color_channel.channel_list)):
-                layout.prop(color_channel, "channel_list", index=idx, text=checkbox_names[idx])
-                
-            row = layout.row()
-            layout.operator("brush.change_brush_color", text="Change Brush Color")
 
-        elif input_mapping.input_source == 'CAMERA':
+            
+        layout.label(text="Select Ouput:")
+        layout.prop(output_mapping, "output_source", expand=True)
+        row = layout.row()
+        
+        if output_mapping.output_source == 'COLOR':
             row = layout.row()
             row.label(text="Channels:")
             # color_channel, "channel_list"
@@ -237,9 +279,23 @@ class VIEW3D_PT_creative_constraints(bpy.types.Panel):  # class naming conventio
             row = layout.row()
             layout.operator("brush.change_brush_color_camera", text="Change Brush Color (Camera)")
             
+        elif output_mapping.output_source == 'SIZE':
+            row = layout.row()
+            row.label(text="Channels:")
+            # color_channel, "channel_list"
+            for idx in range(len(color_channel.channel_list)):
+                layout.prop(color_channel, "channel_list", index=idx, text=checkbox_names[idx])
+                
+            row = layout.row()
+            layout.operator("brush.change_brush_color", text="Change Brush Color")
+            
+            
+            
+            
         
 classes = (
     InputMappingSettings,
+    OutputMappingSettings,
     AudioRigSettings,
     color_channel_settings,
     BRUSH_OT_sound_color,
@@ -254,12 +310,14 @@ def register():
     bpy.types.Scene.color_channel = bpy.props.PointerProperty(type= color_channel_settings) # this creates a variable that can be referenced
     bpy.types.Scene.audio_rig = bpy.props.PointerProperty(type= AudioRigSettings)
     bpy.types.Scene.input_mapping = bpy.props.PointerProperty(type=InputMappingSettings)
+    bpy.types.Scene.output_mapping = bpy.props.PointerProperty(type=OutputMappingSettings)
 
 
 def unregister():
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
     del bpy.types.Scene.input_mapping
+    del bpy.types.Scene.output_mapping
     del bpy.types.Scene.color_channel
     del bpy.types.Scene.audio_rig
 
