@@ -49,15 +49,16 @@ def safe_sample(array):
     # returns a random sample of the array used
     return float(np.random.choice(array))
 
-def change_rgb(rgb_tuple, new_val):
+def change_rgb(bool_tuple, color_tuple, new_val):
     # takes in a tuple of booleans (r,g,b) and returns a tuple with the values marked "true" changed
-    r,g,b = rgb_tuple
+    red,green,blue = bool_tuple
+    r,g,b = color_tuple
     if red == True:
-        r = sampled_brightness
+        r = new_val
     if green == True:
-        g = sampled_brightness
+        g = new_val
     if blue == True:
-        b = sampled_brightness
+        b = new_val
     return (r,g,b)
 
 
@@ -133,7 +134,7 @@ class BRUSH_MAPPING_OT(bpy.types.Operator):
         # current operators modify the brush
         brush = bpy.data.brushes.get("Pencil") # brush should be a choice as well...
         
-        if input_mapping == "AUDIO":
+        if input_mapping.input_source == "AUDIO":
             try:
                 duration = 1
                 sample_rate = 44100
@@ -143,12 +144,13 @@ class BRUSH_MAPPING_OT(bpy.types.Operator):
                 print('audio:', audio)
                 normalized_audio = normalize(audio)
                 new_value = safe_sample(normalized_audio)
+                print('new_value', new_value)
                 
             except Exception as e:
                 self.report({'ERROR'}, f"Error: {str(e)}")
                 
                 
-        elif input_mapping == "CAMERA":
+        elif input_mapping.input_source == "CAMERA":
             try:
                 cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
                 cv2.namedWindow("Webcam Brightness Tracker", cv2.WINDOW_NORMAL)
@@ -177,21 +179,27 @@ class BRUSH_MAPPING_OT(bpy.types.Operator):
             except Exception as e:
                 self.report({'ERROR'}, f"Error: {str(e)}")
 
-        if output_mapping == "COLOR":
+        if output_mapping.output_source == "COLOR":
             color_channel = context.scene.color_channel
             red = color_channel.channel_list[0]
             green = color_channel.channel_list[1]
             blue = color_channel.channel_list[2]
+            print("bool tuple", red, green, blue)
             
             print("old brush rgb", brush.color)
             
-            brush.color = change_rgb((red, green, blue), new_value)
+            brush.color = change_rgb((red, green, blue), brush.color, new_value)
             print("new brush rgb", brush.color)
 
-        elif output_mapping == "SIZE":
+        elif output_mapping.output_source == "SIZE":
             print("old brush size", brush.size)
             brush.size = new_value
             print("new brush size", brush.size)
+        
+        else:
+            print('something went wrong', input_mapping, output_mapping)
+        
+        return {'FINISHED'}
                
 
 ##################
