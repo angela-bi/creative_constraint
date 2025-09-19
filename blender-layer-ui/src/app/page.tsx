@@ -12,13 +12,13 @@ export default function HomePage() {
   const [layers, setLayers] = useState<Layer[]>([]);
 
   useEffect(() => {
-    const wsInstance = new WebSocket("ws://localhost:8765");
+    const wsInstance = new WebSocket("ws://localhost:8770"); // creates object, tries connecting to server
 
-    setWs(wsInstance);
+    setWs(wsInstance); 
 
     wsInstance.onopen = () => {
       setIsConnected(true);
-      console.log("Connected to Blender server");
+      console.log("Connected to Blender server"); // if wsInstance is not None, sets to true
     };
 
     wsInstance.onclose = () => {

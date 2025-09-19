@@ -5,6 +5,7 @@ import sys
 sys.path.append("/Users/angelabi/.local/lib/python3.11/site-packages")
 import websockets
 import json
+import socket
 
 _server_thread = None
 _loop = None
@@ -17,6 +18,9 @@ _clients = set()  # store active WebSocket connections
 async def echo(websocket):
     _clients.add(websocket)
     try:
+        # Schedule the send on Blender's main thread
+        bpy.app.timers.register(schedule_send_layers)
+
         async for message in websocket:
             print("Received from browser:", message)
             await websocket.send("Echo: " + message)
@@ -41,10 +45,10 @@ def start_server():
     global _loop
     _loop = asyncio.new_event_loop()
     asyncio.set_event_loop(_loop)
-    #_port = find_free_port(8765, 20)
+    _port = find_free_port(8765, 20)
 
     async def run():
-        async with websockets.serve(echo, "localhost", 8765):
+        async with websockets.serve(echo, "localhost", _port):
             print("✅ WebSocket server started at" + str(_port))
             await asyncio.Future()  # run forever
 
@@ -53,16 +57,27 @@ def start_server():
 
 def register():
     global _server_thread
+    if _server_thread and _server_thread.is_alive():
+        print("⚠️ Server already running, skipping new thread.")
+        return
+
     _server_thread = threading.Thread(target=start_server, daemon=True)
     _server_thread.start()
-    print("Server thread started")
+    print("✅ Server thread started")
+    send_grease_pencil_layers()
+    print('sent layers')
+
 
 def unregister():
-    global _loop
+    global _loop, _server_thread
     if _loop:
         _loop.call_soon_threadsafe(_loop.stop)
         _loop = None
-    print("Server stopped")
+    if _server_thread:
+        _server_thread.join(timeout=1)  # wait briefly for it to stop
+        _server_thread = None
+    print("🛑 Server stopped")
+
 
 # -------------------------
 # Broadcasting helpers
@@ -90,7 +105,6 @@ def get_active_grease_pencil_layers():
     obj = bpy.context.active_object
     if not obj or obj.type != 'GPENCIL':
         return {"error": "No active Grease Pencil object"}
-
     gp_data = obj.data
     layers_info = []
     for layer in gp_data.layers:
@@ -107,10 +121,25 @@ def get_active_grease_pencil_layers():
     }
 
 def send_grease_pencil_layers():
-    """Send grease pencil layer info to all clients as JSON"""
     data = get_active_grease_pencil_layers()
-    send_to_clients(json.dumps({"grease_pencil_layers": data}))
+    payload = {
+        "type": "layers",
+        "layers": [
+            {
+                "id": idx,
+                "name": layer["name"],
+                "visible": layer["visible"]
+            }
+            for idx, layer in enumerate(data["layers"])
+        ]
+    }
+    send_to_clients(json.dumps(payload))
     print("📤 Sent grease pencil layers to clients")
+    
+def schedule_send_layers():
+    # This runs safely on Blender's main thread
+    send_grease_pencil_layers()
+    return None  # don't repeat
 
 
 if __name__ == "__main__":

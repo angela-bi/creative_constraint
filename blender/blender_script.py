@@ -51,15 +51,20 @@ def safe_sample(array):
 
 def change_rgb(bool_tuple, color_tuple, new_val):
     # takes in a tuple of booleans (r,g,b) and returns a tuple with the values marked "true" changed
-    red,green,blue = bool_tuple
-    r,g,b = color_tuple
-    if red == True:
+    red, green, blue = bool_tuple
+    r, g, b = color_tuple
+
+    new_val = max(0.0, min(1.0, new_val))
+    if red:
         r = new_val
-    if green == True:
+    if green:
         g = new_val
-    if blue == True:
+    if blue:
         b = new_val
-    return (r,g,b)
+
+    new_color = (r, g, b)
+    print("old:", color_tuple, "→ new:", new_color)
+    return new_color
 
 
 ##################
@@ -184,10 +189,8 @@ class BRUSH_MAPPING_OT(bpy.types.Operator):
             red = color_channel.channel_list[0]
             green = color_channel.channel_list[1]
             blue = color_channel.channel_list[2]
-            print("bool tuple", red, green, blue)
             
             print("old brush rgb", brush.color)
-            
             brush.color = change_rgb((red, green, blue), brush.color, new_value)
             print("new brush rgb", brush.color)
 
@@ -247,9 +250,7 @@ class VIEW3D_PT_creative_constraints(bpy.types.Panel):  # class naming conventio
                 
         row = layout.row()
         layout.operator("brush.mapping_operator", text="Map")
-            
-            
-            
+                  
             
         
 classes = (
