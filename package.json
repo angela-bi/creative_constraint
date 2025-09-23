@@ -1,5 +1,8 @@
 {
   "dependencies": {
+    "@xyflow/react": "^12.8.5",
+    "konva": "^10.0.2",
+    "react-konva": "^19.0.10",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1"
   }
