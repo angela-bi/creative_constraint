@@ -1,4 +1,3 @@
-import React from "react";
 import { useEffect, useState } from "react";
 import { Handle, Position, useReactFlow } from "@xyflow/react";
 
@@ -11,8 +10,8 @@ type SoundLevelNodeProps = {
     selected: boolean;
   };
 
-export function SoundLevelNode({ id, data }: { id: string; data: SoundLevelNodeProps }) {
-    const { setNodes } = useReactFlow();
+export function SoundLevelNode({ id, data }: SoundLevelNodeProps ) {
+    // const { setNodes } = useReactFlow();
     const [level, setLevel] = useState(0);
 
     useEffect(() => {
@@ -30,8 +29,10 @@ export function SoundLevelNode({ id, data }: { id: string; data: SoundLevelNodeP
           const buffer = new Uint8Array(analyser.fftSize);
     
           const tick = () => {
+            if (audioCtx && audioCtx.state === "suspended") {
+                audioCtx.resume();
+            }
             analyser!.getByteTimeDomainData(buffer);
-            // Rough RMS
             let sum = 0;
             for (let i = 0; i < buffer.length; i++) {
               const v = (buffer[i] - 128) / 128;
@@ -43,11 +44,15 @@ export function SoundLevelNode({ id, data }: { id: string; data: SoundLevelNodeP
             //console.log(level)
 
             //console.log('setting nodes')
-            setNodes((nds) =>
-                nds.map((n) =>
-                    n.id === id ? { ...n, data: { ...n.data, level: rms } } : n
-                )
-            );
+            if (data.ws && data.ws.readyState === WebSocket.OPEN && data.connectedToBrush) {
+                data.ws.send(
+                    JSON.stringify({
+                    type: "sound_level",
+                    node: id,
+                    level: rms,
+                    })
+                );
+            }
 
             rafId = requestAnimationFrame(tick);
           };
@@ -59,7 +64,7 @@ export function SoundLevelNode({ id, data }: { id: string; data: SoundLevelNodeP
           audioCtx?.close();
           source?.disconnect();
         };
-    }, [id, setNodes]);
+    }, [id, data.ws, data.connectedToBrush]);
 
 
     const height = Math.min(100, level * 400); // scale
@@ -93,7 +98,6 @@ export function SoundLevelNode({ id, data }: { id: string; data: SoundLevelNodeP
         />
         {/* <span style={{ position: "absolute", top: 4 }}>{id}</span> */}
 
-        {/* Connection handles */}
         <Handle type="target" position={Position.Left} />
         <Handle type="source" position={Position.Right} />
     </div>

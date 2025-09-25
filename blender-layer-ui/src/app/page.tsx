@@ -129,27 +129,33 @@ export default function HomePage() {
     );
   }, [ws, hasSoundToBrushLink, setNodes]);
 
-  useEffect(() => {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    if (!hasSoundToBrushLink) return;
-    //console.log('sound and brush connected')
+  // useEffect(() => {
+  //   if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  //   if (!hasSoundToBrushLink) return;
+  //   //console.log('sound and brush connected')
   
-    const interval = setInterval(() => {
-      nodesRef.current.forEach((n) => {
-        if (n.type === "soundNode" && n.data.level !== undefined) {
-          ws.send(
-            JSON.stringify({
-              type: "sound_level",
-              node: n.id,
-              level: n.data.level,
-            })
-          );
-        }
-      });
-    }, 100);
+  //   const interval = setInterval(() => {
+  //     nodesRef.current.forEach((n) => {
+  //       if (n.type === "soundNode" && n.data.level !== undefined) {
+  //         ws.send(
+  //           JSON.stringify({
+  //             type: "sound_level",
+  //             node: n.id,
+  //             level: n.data.level,
+  //           })
+  //         );
+  //       }
+  //     });
+  //   }, 100);
   
-    return () => clearInterval(interval);
-  }, [ws, nodes, hasSoundToBrushLink]);
+  //   return () => clearInterval(interval);
+  // }, [ws, nodes, hasSoundToBrushLink]);
+
+  // const toggleLayer = (id: number) => {
+  //   if (ws && ws.readyState === WebSocket.OPEN) {
+  //     ws.send(JSON.stringify({ type: "toggle_layer", id }));
+  //   }
+  // };
 
   return (
     <main className="p-6">
