@@ -15,6 +15,7 @@ import { ReactFlow,
 import '@xyflow/react/dist/style.css';
 import { SoundLevelNode } from "./soundLevelNode";
 import { BrushSettingNode } from "./brushSettingNode";
+import Sketch from "./sketch";
 
 const nodeTypes = { soundNode: SoundLevelNode, brushNode: BrushSettingNode };
 
@@ -177,21 +178,26 @@ export default function HomePage() {
               </li>
             ))}
           </ul> */}
-          <div style={{ width: "100%", height: "100vh" }}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            fitView
-          >
-            <Background />
-            <Controls />
-            <MiniMap />
-          </ReactFlow>
-        </div>
+          <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+            <div style={{ flex: "2 1 0%" }}>
+              <Sketch />
+            </div>
+            <div style={{ flex: "1 1 0%" }}> 
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                nodeTypes={nodeTypes}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                fitView
+              >
+                <Background />
+                <Controls />
+                <MiniMap />
+              </ReactFlow>
+            </div>
+          </div>
         </div>
       )}
     </main>

@@ -9,19 +9,26 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@xyflow/react": "^12.8.6",
+    "next": "^16.0.0-canary.16",
+    "paper": "^0.12.18",
+    "paper-jsdom": "^0.12.18",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "next": "15.4.6"
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/estree": "^1.0.8",
+    "@types/json-schema": "^7.0.15",
     "@types/node": "^20",
+    "@types/paper": "^0.11.14",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.4.6",
-    "@eslint/eslintrc": "^3"
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }

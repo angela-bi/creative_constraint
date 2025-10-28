@@ -1,7 +1,14 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  /* config options here */
+// next.config.js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  webpack: (config: any) => {
+    // Force Paper.js to use the browser-safe version
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      "paper": "paper/dist/paper-core.js",
+    };
+    return config;
+  },
 };
 
 export default nextConfig;
