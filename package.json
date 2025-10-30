@@ -1,9 +1,36 @@
 {
+  "name": "blender-layer-ui",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js",
+    "lint": "next lint"
+  },
   "dependencies": {
-    "@xyflow/react": "^12.8.5",
-    "konva": "^10.0.2",
-    "react-konva": "^19.0.10",
-    "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1"
+    "@xyflow/react": "^12.8.6",
+    "next": "^16.0.0-canary.16",
+    "paper": "^0.12.18",
+    "paper-jsdom": "^0.12.18",
+    "react": "19.1.0",
+    "react-color": "^2.19.3",
+    "react-dom": "19.1.0",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/estree": "^1.0.8",
+    "@types/json-schema": "^7.0.15",
+    "@types/node": "^20",
+    "@types/paper": "^0.11.14",
+    "@types/react": "^19",
+    "@types/react-color": "^3.0.13",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.4.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
