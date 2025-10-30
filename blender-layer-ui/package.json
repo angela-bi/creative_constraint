@@ -14,6 +14,7 @@
     "paper": "^0.12.18",
     "paper-jsdom": "^0.12.18",
     "react": "19.1.0",
+    "react-color": "^2.19.3",
     "react-dom": "19.1.0",
     "socket.io": "^4.8.1"
   },
@@ -25,6 +26,7 @@
     "@types/node": "^20",
     "@types/paper": "^0.11.14",
     "@types/react": "^19",
+    "@types/react-color": "^3.0.13",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.4.6",

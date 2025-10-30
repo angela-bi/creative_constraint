@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import paper from "paper";
+import { Color, SketchPicker } from 'react-color';
+import { ColorResult } from "react-color";
+import { RGBColor } from "react-color";
+import { Ratio } from "./page";
+
+type CanvasProps = {
+  ratio: Ratio;
+  setRatio: React.Dispatch<React.SetStateAction<Ratio>>;
+};
 
 type RGB = [number, number, number];
 
@@ -9,14 +17,18 @@ const pink: RGB = [237, 34, 93]
 const blue: RGB = [38, 124, 237]
 const white: RGB = [255, 255, 255]
 
-export default function Sketch() {
+export default function Canvas({ ratio, setRatio }: CanvasProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [avg, setAvg] = useState<RGB | null>(null);
-  const [color1, setColor1] = useState<RGB | null>(null);
+  const [color1, setColor1] = useState<RGB | null>([237, 37, 93]);
   const [color2, setColor2] = useState<RGB | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  const [sketchPickerColor, setSketchPickerColor] = useState<RGBColor | null>({ r: 237, g: 37, b: 93 });
 
   type RGB = [number, number, number]; // each 0–255
 
+  // for 1 color and canvas
   function computeMixRatio(c1: RGB, c2: RGB, target: RGB) {
     // convert to linear RGB (undo sRGB gamma)
     const toLinear = (c: number) =>
@@ -46,12 +58,13 @@ export default function Sketch() {
     const srgb = mix.map(c => Math.round(toSrgb(c) * 255)) as RGB;
 
     return {
-      ratioBlue: t,
-      ratioPink: 1 - t,
+      ratioC1: t,
+      ratioC2: 1 - t,
       mixedRGB: srgb
     };
   }
 
+  // for 2 colors and canvas
   function mix3Colors(
     c1: RGB, c2: RGB, c3: RGB,
     target: RGB
@@ -119,6 +132,8 @@ export default function Sketch() {
 
 
   useEffect(() => {
+    setMounted(true)
+
     const iframe = iframeRef.current;
     if (!iframe) return;
 
@@ -142,14 +157,12 @@ let tempPaint1 = [];
 let tempPaint2 = [];
 
 let lastSampleTime = 0;
-const sampleInterval = 200;
+const sampleInterval = 600; // how many times p5 sends the avg data
 
 function samplePixels() {
   loadPixels();
   const snapshot = new Uint8ClampedArray(pixels);
-  //console.log("Sampled", snapshot.length / 4, "pixels");
   const avg = averageColor(snapshot);
-  // console.log('avg color', avg)
   sendData({ avg });
 }
 
@@ -164,7 +177,18 @@ function averageColor(pixels) {
   return [r / count, g / count, b / count];
 }
 
+colorPicked = [237, 37, 93];
+
+
 function setup() {
+  window.addEventListener("message", (event) => {
+    if (event.data?.type === "updateColor") {
+      const { r, g, b } = event.data.payload;
+      colorPicked = [r, g, b];
+      console.log("Updated colorPicked:", colorPicked);
+    }
+  });
+
   pixelDensity(1);
   if (smallCanvas == true) {
     createCanvas(630,450)
@@ -173,8 +197,8 @@ function setup() {
   createCanvas(round(windowWidth * 0.98), round(windowHeight * 0.93));
   }
   background(255);
-  colorPicker = createColorPicker("#ed225d");
-  colorPicker.position(0, height + 5);
+  // colorPicker = createColorPicker("#ed225d");
+  // colorPicker.position(0, height + 5);
   sliderDrops = createSlider(100, 600, 100);
   sliderDrops.position(70, height + 5);
   buttonDry = createButton("Dry All");
@@ -201,7 +225,7 @@ function draw() {
   buttonWet.mousePressed(wet);
   buttonDefault.mousePressed(defaultDry);
   paintDrop = sliderDrops.value();
-  colorPicked = colorPicker.color();
+
   addPaint();
   update();
   render();
@@ -272,11 +296,12 @@ function drawLinePoints(x1, y1, x2, y2, points) {
 }
 
 // replace array points when drawing
+
 function renderPoints(x, y) {
   let arrayPos = (x + y * width) * 4;
-  let newR = (paint[arrayPos + 0] + colorPicked.levels[0]) / 2;
-  let newG = (paint[arrayPos + 1] + colorPicked.levels[1]) / 2;
-  let newB = (paint[arrayPos + 2] + colorPicked.levels[2]) / 2;
+  let newR = (paint[arrayPos + 0] + colorPicked[0]) / 2;
+  let newG = (paint[arrayPos + 1] + colorPicked[1]) / 2;
+  let newB = (paint[arrayPos + 2] + colorPicked[2]) / 2;
   let newN = paint[arrayPos + 3] + paintDrop;
   paint.splice(arrayPos, 4, newR, newG, newB, newN); // replace the current pixel color with the newly calculated color
 }
@@ -436,7 +461,6 @@ function keyTyped() {
   }
 }
 `
-
     const html = `
       <!DOCTYPE html>
       <html lang="en">
@@ -466,10 +490,26 @@ function keyTyped() {
       </html>
     `;
 
-
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     iframe.src = url;
+
+  }, [])
+
+  useEffect(() => {
+    if (!iframeRef.current) return;
+    const iframe = iframeRef.current;
+  
+    // Send color updates to iframe
+    if (sketchPickerColor && iframe.contentWindow) {
+      console.log('sketchPickerColor: ', sketchPickerColor)
+      setColor1([sketchPickerColor['r'], sketchPickerColor['g'], sketchPickerColor['b']]) // need to write a function to convert between types
+      console.log('color1: ', color1)
+      iframe.contentWindow.postMessage(
+        { type: "updateColor", payload: sketchPickerColor },
+        "*"
+      );
+    }
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === "data") {
@@ -477,24 +517,47 @@ function keyTyped() {
         console.log("Received avg:", avg);
         setAvg(avg)
 
-        console.log('mix_ratio: ', computeMixRatio(pink, blue, avg))
-        console.log('3 color mix ratio: ', mix3Colors(pink, blue, white, avg))
+        // console.log('color1: ', color1)
+        const mix_ratio = computeMixRatio(color1!, white, avg)
+        console.log('mix_ratio: ', mix_ratio)
+        setRatio([mix_ratio['ratioC1'], mix_ratio['ratioC2']])
+        //console.log('3 color mix ratio: ', mix3Colors(pink, blue, white, avg))
       }
     };
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
 
-  }, [])
+  }, [sketchPickerColor]);
 
   return (
-    <iframe
-      ref={iframeRef}
-      style={{
-        width: "100%",
-        height: "100%",
-        border: "none",
-      }}
-      sandbox="allow-scripts allow-same-origin"
-    />
+    <div  style={{ display: "flex", flexDirection: "column", height: "100vh", width: "100%"}}>
+      <div  style={{ display: "flex", flexDirection: "row", gap: "20px"}}>
+        <div style={{ display: "flex", flexDirection: "column"}}>
+          <p>1. Select an parameter to configure:</p>
+          <select>
+            <option value="width">Brush width</option>
+          </select>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column"}}>
+          <p>2. Select color to map to sound level:</p>
+          {mounted && <SketchPicker presetColors={[]} disableAlpha={true}
+              onChange={(color) => {
+                setSketchPickerColor(color.rgb as RGBColor);
+              }}
+              color={sketchPickerColor!}
+            />
+            }
+        </div>
+      </div>
+      <iframe
+        ref={iframeRef}
+        style={{
+          width: "100%",
+          height: "100%",
+          border: "none",
+        }}
+        // sandbox="allow-scripts allow-same-origin"
+      />
+    </div>
   );
 }

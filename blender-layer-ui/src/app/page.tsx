@@ -12,10 +12,11 @@ import { ReactFlow,
   Connection,
   Edge,
 } from "@xyflow/react";
-import '@xyflow/react/dist/style.css';
+import "@xyflow/react/dist/style.css";
 import { SoundLevelNode } from "./soundLevelNode";
 import { BrushSettingNode } from "./brushSettingNode";
-import Sketch from "./sketch";
+import Sketch from "./canvas";
+import DrawingSoftware from "./drawingSoftware";
 
 const nodeTypes = { soundNode: SoundLevelNode, brushNode: BrushSettingNode };
 
@@ -23,10 +24,14 @@ const initialEdges: Edge[] = [];
 
 // type Layer = { id: number; name: string; visible: boolean };
 
+export type Ratio = [number, number]
+
 export default function HomePage() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [ratio, setRatio] = useState<Ratio>([1, 0]) // first one is brush.width, second is sound 
   // const [layers, setLayers] = useState<Layer[]>([]);
+  // const [param, setParam] = useState<string>('');
 
   const initialNodes = [
     {
@@ -160,10 +165,6 @@ export default function HomePage() {
 
   return (
     <main className="p-6">
-      <h1 className="text-xl font-bold mb-4">Blender Mappings</h1>
-      {!isConnected ? (
-        <p>Waiting for Blender…</p>
-      ) : (
         <div>
           {/* <ul className="space-y-2">
             {layers.map((layer) => (
@@ -178,28 +179,34 @@ export default function HomePage() {
               </li>
             ))}
           </ul> */}
-          <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-            <div style={{ flex: "2 1 0%" }}>
-              <Sketch />
-            </div>
-            <div style={{ flex: "1 1 0%" }}> 
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                nodeTypes={nodeTypes}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                fitView
-              >
-                <Background />
-                <Controls />
-                <MiniMap />
-              </ReactFlow>
-            </div>
+        <div style={{ display: "flex", flexDirection: "row", height: "100vh", width: "100%"}}>
+          <div style={{ flex: "1 1 0%" }}>
+            <Sketch
+              ratio={ratio}
+              setRatio={setRatio}
+            />
+          </div>
+          <div style={{ flex: "1 1 0%" }}>
+            {/* <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              fitView
+            >
+              <Background />
+              <Controls />
+              <MiniMap />
+            </ReactFlow> */}
+            <DrawingSoftware 
+              ratio={ratio}
+              setRatio={setRatio}
+            />
           </div>
         </div>
-      )}
+      </div>
     </main>
   );
 }
