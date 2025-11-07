@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Klecks</title>
+    <base href="./" /> <!-- ✅ important -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <link rel="icon" type="image/png" href="./klecks-icon.ec3e5aec.png" />
+    <link rel="stylesheet" href="./klecks-main.69e3b527.css" />
+    <link rel="stylesheet" href="./klecks-main.8fa62634.css" />
+  </head>
+  <body>
+    <div id="loading-screen">Loading Klecks</div>
+
+    <!-- <script src="./klecks-main.90cba51a.js" nomodule defer></script>
+    <script type="module" src="./klecks-main.8cb0fcec.js"></script> -->
+    <script type="module" src="./klecks-main.145099c5.js"></script>
+
+
+    <script>
+        import('./klecks-main.145099c5.js').then(() => {
+                console.log('in import then')
+                // Poll until window.klecks is defined
+                const waitForKlecks = setInterval(() => {
+                        console.log('window: ', window)
+                        if (window.klecks && window.klecks.tools && window.klecks.tools.brush) {
+                                clearInterval(waitForKlecks);
+                                console.log("Klecks is ready!", window.klecks);
+                                // Now you can safely set brush size
+                                window.klecks.tools.brush.setSize(30);
+                                window.klecks.tools.brush.setColor({ r: 0, g: 255, b: 0 });
+                        }
+                }, 50);
+        });
+    </script>
+  </body>
+</html>
+

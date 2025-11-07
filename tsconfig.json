@@ -36,7 +36,7 @@
     "src",
     "globals.d.ts",
     ".next/dev/types/**/*.ts"
-  ],
+, "app"  ],
   "exclude": [
     "node_modules"
   ]
