@@ -8,20 +8,22 @@ export type Mapping = {id: number, color: Color, input: Input, image_path: strin
 
 type MappingProps = {
     colors: Color[];
-    setActiveColor: React.Dispatch<React.SetStateAction<Color>>;
+    activeColor: number;
+    setActiveColor: React.Dispatch<React.SetStateAction<number>>;
+    soundLevel: number;
 };
 
-export function MappingList({ colors, setActiveColor }: MappingProps) {
+export function MappingList({ colors, activeColor, setActiveColor, soundLevel }: MappingProps) {
     const [mappings, setMappings] = useState<Mapping[]>([]);
     const MAX_MAPPINGS = 4; // when we reach this number, stop rendering + sign
-    const [activeMappingId, setActiveMappingId] = useState<number | null>(null); // this is the id number of the mapping who the user is selecting a color for
+    // const [activeMappingId, setActiveMappingId] = useState<number | null>(null); // this is the id number of the mapping who the user is selecting a color for
 
     // populating mappings
     useEffect(() => {
         const positions = [
-            { x: 50, y: 580 }, // pink
-            { x: 260, y: 480 }, // blue
-            { x: 450, y: 600 }, // green
+            { x: 50, y: 620 }, // pink
+            { x: 260, y: 510 }, // blue
+            { x: 450, y: 630 }, // green
         ];
 
         if (!colors || colors.length === 0) return;
@@ -41,17 +43,19 @@ export function MappingList({ colors, setActiveColor }: MappingProps) {
         event: React.MouseEvent<HTMLElement>,
         id: number
       ) => {
-        setActiveMappingId(id);
+        setActiveColor(id);
     };
 
     // when color is selected from menu
     const handleColorSelect = (color: Color) => {
-        if (activeMappingId === null) return;
-        setMappings((prev) =>
-          prev.map((m) =>
-            m.id === activeMappingId ? { ...m, color } : m
-          )
-        );
+        if (activeColor === null) return;
+        // change UI
+
+        // setMappings((prev) =>
+        //   prev.map((m) =>
+        //     m.id === activeColor ? { ...m, color } : m
+        //   )
+        // );
         // handleClose();
     };
 
@@ -60,7 +64,7 @@ export function MappingList({ colors, setActiveColor }: MappingProps) {
             <div
             style={{
                 position: "fixed",
-                bottom: "-150px",
+                bottom: "-200px",
                 left: "0px",
                 zIndex: 10,
                 width: "700px",
@@ -71,12 +75,13 @@ export function MappingList({ colors, setActiveColor }: MappingProps) {
                 backgroundPosition: "center",
                 display: "flex",
                 flexDirection: "column",
-                transform: "rotate(20deg) scale(1.4)",
+                transform: "rotate(20deg) scale(1.3)",
             }}
             />
             {mappings.map((mapping) => {
                 const { id, color, input, image_path, pos } = mapping;
-                console.log(mapping)
+                const isActive = activeColor === id + 1;
+                // console.log(mapping)
 
                 return (
                     <div
@@ -94,10 +99,29 @@ export function MappingList({ colors, setActiveColor }: MappingProps) {
                             backgroundRepeat: "no-repeat",
                             backgroundPosition: "center",
                             cursor: "pointer",
-                            clipPath: "circle(50% at 50% 50%)"
+                            clipPath: "circle(50% at 50% 50%)",
+                            opacity: isActive ? 1 : 0.6,
+                            transition: "opacity 0.2s ease-in-out",
                         }}
-                        onClick={(e) => handleColorButtonClick(e, id)}
-                    />
+                        onClick={(e) => setActiveColor(id+1)}
+                    >
+                        {id === 0 && ( // only render for first div
+                            <div
+                            style={{
+                                position: 'absolute',
+                                zIndex: 30,
+                                bottom: "60px",
+                                left: "60px",
+                                width: `${soundLevel*200}%`,
+                                height: "20px",
+                                background: "gray",
+                                borderRadius: 4,
+                                transition: "height 0.2s linear fade",
+                                pointerEvents: "none",
+                            }}
+                        />
+                        )}
+                    </div>
                 )
             })}
         </div>

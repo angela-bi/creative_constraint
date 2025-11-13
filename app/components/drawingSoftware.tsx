@@ -39,58 +39,6 @@ export default function DrawingSoftware({ ratio, setRatio, colors }: DrawingProp
     };
   }, [ratio]);  
 
-  // audio
-  useEffect(() => {
-    let audioCtx: AudioContext | null = null;
-    let analyser: AnalyserNode | null = null;
-    let source: MediaStreamAudioSourceNode | null = null;
-    let rafId: number;
-
-    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-      audioCtx = new AudioContext();
-      analyser = audioCtx.createAnalyser();
-      source = audioCtx.createMediaStreamSource(stream);
-      source.connect(analyser);
-
-      const buffer = new Uint8Array(analyser.fftSize);
-
-      const tick = () => {
-        if (audioCtx && audioCtx.state === "suspended") {
-          audioCtx.resume();
-        }
-
-        analyser!.getByteTimeDomainData(buffer);
-        let sum = 0;
-        for (let i = 0; i < buffer.length; i++) {
-          const v = (buffer[i] - 128) / 128;
-          sum += v * v;
-        }
-        const rms = Math.sqrt(sum / buffer.length); // volume between 0 and ~0.2 typical
-
-        // Send volume to p5 sketch as brush size
-        const iframe = iframeRef.current;
-        if (iframe && iframe.contentWindow) {
-          iframe.contentWindow.postMessage(
-            {
-              type: "updateBrushSize",
-              payload: { rms },
-            },
-            "*"
-          );
-        }
-
-        rafId = requestAnimationFrame(tick);
-      };
-      tick();
-    });
-
-    return () => {
-      if (rafId) cancelAnimationFrame(rafId);
-      audioCtx?.close();
-      source?.disconnect();
-    };
-  }, []);
-
   // iframe
   useEffect(() => {
     const iframe = iframeRef.current;

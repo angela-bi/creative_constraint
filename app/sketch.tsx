@@ -12,7 +12,7 @@ type SketchProps = {
   // ratio: Ratio;
   setRatio: React.Dispatch<React.SetStateAction<Ratio>>;
   colors: Color[];
-  activeColor: Color;
+  activeColor: number;
 };
 
 export default function Sketch({ setRatio, colors, activeColor }: SketchProps) {
@@ -21,8 +21,6 @@ export default function Sketch({ setRatio, colors, activeColor }: SketchProps) {
   const [color1, setColor1] = useState<RGB | null>([237, 37, 93]);
   const [color2, setColor2] = useState<RGB | null>(null);
   const [mounted, setMounted] = useState(false);
-
-  const [sketchPickerColor, setSketchPickerColor] = useState<RGB | null>([237, 37, 93]);
 
   // for 1 color and canvas
   function computeMixRatio(c1: RGB, c2: RGB, target: RGB) {
@@ -180,7 +178,8 @@ function setup() {
   window.addEventListener("message", (event) => {
     if (event.data?.type === "updateColor") {
       const { r, g, b } = event.data.payload;
-      colorPicked = [r, g, b];
+      console.log('event data payload', event.data.payload)
+      colorPicked = [event.data.payload.rgb[0], event.data.payload.rgb[1], event.data.payload.rgb[2]];
       console.log("Updated colorPicked:", colorPicked);
     }
   });
@@ -195,8 +194,8 @@ function setup() {
   background(255);
   // colorPicker = createColorPicker("#ed225d");
   // colorPicker.position(0, height + 5);
-  sliderDrops = createSlider(100, 600, 100);
-  sliderDrops.position(70, height + 5);
+  // sliderDrops = createSlider(100, 600, 100);
+  // sliderDrops.position(70, height + 5);
   buttonDry = createButton("Dry All");
   buttonDry.position(210, height + 5);
   buttonWet = createButton("Keep Wet");
@@ -220,7 +219,8 @@ function draw() {
   buttonDry.mousePressed(dry);
   buttonWet.mousePressed(wet);
   buttonDefault.mousePressed(defaultDry);
-  paintDrop = sliderDrops.value();
+  // paintDrop = sliderDrops.value();
+  paintDrop = 70;
 
   addPaint();
   update();
@@ -497,12 +497,12 @@ function keyTyped() {
     const iframe = iframeRef.current;
   
     // Send color updates to iframe
-    if (sketchPickerColor && iframe.contentWindow) {
-      console.log('sketchPickerColor: ', sketchPickerColor)
-      setColor1([sketchPickerColor[0], sketchPickerColor[1], sketchPickerColor[2]]) // need to write a function to convert between types
-      console.log('color1: ', color1)
+    if (colors.length > 0 && iframe.contentWindow) {
+      console.log('sketchPickerColor: ', activeColor)
+      setColor1([colors[activeColor].rgb[0], colors[activeColor].rgb[1], colors[activeColor].rgb[2]]) // need to write a function to convert between types
+      //console.log('color1: ', color1)
       iframe.contentWindow.postMessage(
-        { type: "updateColor", payload: sketchPickerColor },
+        { type: "updateColor", payload: colors[activeColor] },
         "*"
       );
     }
@@ -514,23 +514,23 @@ function keyTyped() {
         setAvg(avg)
 
         // console.log('color1: ', color1)
-        const mix_ratio = computeMixRatio(color1!, colors[0].rgb, avg)
+        const mix_ratio = computeMixRatio(colors[activeColor].rgb!, colors[0].rgb, avg)
         console.log('mix_ratio: ', mix_ratio)
-        setRatio([mix_ratio['ratioC1'], mix_ratio['ratioC2']])
+        setRatio([mix_ratio['ratioC1'], mix_ratio['ratioC2']]) // this can be used by any input aka any color
         //console.log('3 color mix ratio: ', mix3Colors(pink, blue, white, avg))
       }
     };
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
 
-  }, [sketchPickerColor]);
+  }, [activeColor]);
 
   return (
     <div style={{ display: "flex", flexDirection: "row", height: "100%", gap: '20px'}}>
       <div style={{ display: "flex", flexDirection: "column", gap: '10px', width: '100%'}}>
-        <select>
+        {/* <select>
           <option value="width">Brush width</option>
-        </select>
+        </select> */}
         <iframe
           ref={iframeRef}
           style={{
