@@ -9,12 +9,13 @@ import { MappingList } from "./components/mappingList";
 import { RGB, Color } from "./page";
 
 type SketchProps = {
-  ratio: Ratio;
+  // ratio: Ratio;
   setRatio: React.Dispatch<React.SetStateAction<Ratio>>;
   colors: Color[];
+  activeColor: Color;
 };
 
-export default function Sketch({ ratio, setRatio, colors }: SketchProps) {
+export default function Sketch({ setRatio, colors, activeColor }: SketchProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [avg, setAvg] = useState<RGB | null>(null);
   const [color1, setColor1] = useState<RGB | null>([237, 37, 93]);
@@ -186,7 +187,7 @@ function setup() {
 
   pixelDensity(1);
   if (smallCanvas == true) {
-    createCanvas(630,450)
+    createCanvas(700,450)
   }
   else {
   createCanvas(round(windowWidth * 0.98), round(windowHeight * 0.93));
@@ -526,14 +527,6 @@ function keyTyped() {
 
   return (
     <div style={{ display: "flex", flexDirection: "row", height: "100%", gap: '20px'}}>
-      <div style={{ display: "flex", flexDirection: "column", gap: '10px', width:'200px'}}>
-        <p>Mappings:</p>
-        {
-          mounted && <MappingList
-              colors={colors}
-            />
-        }
-      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: '10px', width: '100%'}}>
         <select>
           <option value="width">Brush width</option>

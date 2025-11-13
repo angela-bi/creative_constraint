@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { Ratio } from "./page";
+import { Ratio } from "../page";
 
 interface KlecksDrawingProps {
   ratio: Ratio;
@@ -131,7 +131,7 @@ export default function KlecksDrawing({
   return (
     <iframe
       ref={iframeRef}
-      src="http://localhost:3000" 
+      src="http://localhost:55443" 
       style={{ width: "100%", height: "100%", border: "none" }}
       sandbox="allow-scripts allow-same-origin"
     />

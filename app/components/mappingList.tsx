@@ -4,52 +4,36 @@ import MenuItem from '@mui/material/MenuItem';
 import { Color } from "../page";
 
 export type Input = "sound" | "brightness" | "nothing"
-export type Mapping = {id: number, color?: Color, input?: Input} // when color and input are undefined, we render a plus sign
+export type Mapping = {id: number, color: Color, input: Input, image_path: string, pos: {x: number, y: number}}
 
 type MappingProps = {
-    colors: Color[]
+    colors: Color[];
+    setActiveColor: React.Dispatch<React.SetStateAction<Color>>;
 };
 
-export function MappingList({ colors }: MappingProps) {
-    const [mappings, setMappings] = useState<Mapping[]>([{id: 0, color: colors[1], input: "nothing"}, {id: 1}]); // this is the first empty plus sign
+export function MappingList({ colors, setActiveColor }: MappingProps) {
+    const [mappings, setMappings] = useState<Mapping[]>([]);
     const MAX_MAPPINGS = 4; // when we reach this number, stop rendering + sign
     const [activeMappingId, setActiveMappingId] = useState<number | null>(null); // this is the id number of the mapping who the user is selecting a color for
 
-    let menu_colors = colors.slice(1) // this is excluding the white
+    // populating mappings
+    useEffect(() => {
+        const positions = [
+            { x: 50, y: 580 }, // pink
+            { x: 260, y: 480 }, // blue
+            { x: 450, y: 600 }, // green
+        ];
 
-    // for menu
-    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
-    const open = Boolean(anchorEl);
-    const handleClose = () => {
-        setAnchorEl(null);
-    };
-
-    // when the + button is clicked
-    const handleAddMapping = (id: number) => {
-        setMappings((prev: Mapping[]) => {
-            // id
-            const newId = prev.length > 0 ? Math.max(...prev.map((m) => m.id)) + 1 : 0;
-      
-            // used colors
-            const usedColorNames = new Set(
-                prev.filter(m => m.color).map(m => m.color?.name)
-            );
-            const nextColor = menu_colors.find(c => !usedColorNames.has(c.name)) ?? menu_colors[0];
-            
-            const updated: Mapping[] = prev.map((m) =>
-                m.id === id
-                ? { ...m, color: nextColor, input: "nothing" }
-                : m
-            );
-        
-            // new empty mapping at the end for + button--- if we've reached the limit, don't render + button anymore
-            if ( usedColorNames.size < MAX_MAPPINGS - 1 ) {
-                updated.push({ id: newId });
-            }
-
-            return updated;
-        });
-    };
+        if (!colors || colors.length === 0) return;
+        const initialMappings = colors.slice(1, MAX_MAPPINGS ).map((color, index) => ({ // excluding first color, white
+          id: index,
+          color,
+          input: "nothing" as Input,
+          image_path: "", // placeholder
+          pos: positions[index]
+        }));
+        setMappings(initialMappings);
+      }, [colors]);
        
 
     // when color button is clicked
@@ -57,7 +41,6 @@ export function MappingList({ colors }: MappingProps) {
         event: React.MouseEvent<HTMLElement>,
         id: number
       ) => {
-        setAnchorEl(event.currentTarget);
         setActiveMappingId(id);
     };
 
@@ -69,100 +52,54 @@ export function MappingList({ colors }: MappingProps) {
             m.id === activeMappingId ? { ...m, color } : m
           )
         );
-        handleClose();
+        // handleClose();
     };
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem", width: "100%"}}>
+        <div>
+            <div
+            style={{
+                position: "fixed",
+                bottom: "-150px",
+                left: "0px",
+                zIndex: 10,
+                width: "700px",
+                height: '500px',
+                backgroundImage: "url('/images/palette.png')",
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+                display: "flex",
+                flexDirection: "column",
+                transform: "rotate(20deg) scale(1.4)",
+            }}
+            />
             {mappings.map((mapping) => {
-                const { id, color, input } = mapping;
+                const { id, color, input, image_path, pos } = mapping;
+                console.log(mapping)
 
-                if (!color && !input) {
                 return (
                     <div
-                    key={id}
-                    style={{
-                        borderRadius: "11px",
-                        border: "1px solid gray",
-                        width: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                    }}
-                    onClick={() => handleAddMapping(id)}
-                    >
-                    +
-                    </div>
-                );
-                }
-
-                return (
-                <div key={id} style={{ display: "flex", flexDirection: "row", gap: "0.5rem" }}>
-                    <button 
-                        style={{ 
-                            backgroundColor: `rgb(${color!.rgb[0]}, ${color!.rgb[1]}, ${color!.rgb[2]})`,
-                            border: "none",
-                            borderRadius: "11px",
-                            width: "40px",
-                            height: "40px",
+                        key={id}
+                        style={{
+                            position: 'absolute',
+                            zIndex: 20,
+                            top: `${pos.y}px`,
+                            left: `${pos.x}px`,
+                            // backgroundColor: `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`,
+                            backgroundImage: `url('/images/ellipse_${color.name}.png')`,
+                            width: "200px",
+                            height: "200px",
+                            backgroundSize: "contain",
+                            backgroundRepeat: "no-repeat",
+                            backgroundPosition: "center",
                             cursor: "pointer",
-                        }} 
+                            clipPath: "circle(50% at 50% 50%)"
+                        }}
                         onClick={(e) => handleColorButtonClick(e, id)}
                     />
-                    <select
-                        value={input}
-                        onChange={(e) =>
-                            setMappings((prev) =>
-                            prev.map((m) =>
-                                m.id === id ? { ...m, input: e.target.value as Input } : m
-                            )
-                            )
-                        }
-                    >
-                        <option value="nothing">Nothing</option>
-                        <option value="sound">Sound</option>
-                        <option value="brightness">Brightness</option>
-                    </select>
-
-                    {activeMappingId === id && (
-                        <Menu
-                        anchorEl={anchorEl}
-                        open={open}
-                        onClose={handleClose}
-                        anchorOrigin={{ horizontal: "left", vertical: "bottom" }}
-                        transformOrigin={{ horizontal: "left", vertical: "top" }}
-                      >
-                            <div
-                            onClick={(e) => e.stopPropagation()}
-                            style={{
-                                background: "white",
-                                padding: "10px",
-                                borderRadius: "12px",
-                                display: "flex",
-                                gap: "1rem",
-                            }}
-                            >
-                            {menu_colors.map((c) => (
-                                <MenuItem
-                                key={c.name}
-                                onClick={() => handleColorSelect(c)}
-                                style={{
-                                    width: "40px",
-                                    height: "40px",
-                                    borderRadius: "50%",
-                                    backgroundColor: `rgb(${c.rgb[0]}, ${c.rgb[1]}, ${c.rgb[2]})`,
-                                    cursor: "pointer",
-                                    boxShadow: c.name === color!.name ? "0px 2px 10px rgba(0,0,0,0.25)" : "0px solid #ccc",
-                                }}
-                                />
-                            ))}
-                            </div>
-                            </Menu>
-                        )}
-                </div>
-                );
+                )
             })}
-            </div>
+        </div>
     )
 }

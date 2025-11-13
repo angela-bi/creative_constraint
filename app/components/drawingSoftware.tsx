@@ -4,7 +4,7 @@ import { RGB, Color, Ratio } from "../page";
 type DrawingProps = {
   ratio: Ratio;
   setRatio: React.Dispatch<React.SetStateAction<Ratio>>;
-  colors: Color[];
+  colors: Color;
 };
 
 export default function DrawingSoftware({ ratio, setRatio, colors }: DrawingProps) {
@@ -97,77 +97,34 @@ export default function DrawingSoftware({ ratio, setRatio, colors }: DrawingProp
     if (!iframe) return;
 
     const code = `
-let brushSize = 15;
-let ratio = [1, 0];
-let myPicker, sizeSlider;
-
-window.addEventListener("message", (event) => {
-  if (event.data?.type === "updateRatio") {
-    ratio = event.data.payload.ratio; // e.g. [0.6, 0.4]
-  }
-
-  if (event.data?.type === "updateBrushSize") {
-    const { rms } = event.data.payload;
-    const soundInfluence = 10 + rms * 400; // base sound-driven size
-    brushSize = ratio[0] * brushSize + ratio[1] * soundInfluence;
-    console.log("ratio: ", ratio)
-    console.log("brushSize:", brushSize);
-  }
-});
-
 function setup() {
   createCanvas(1000, 1000);
-  text('brush color', 0, 490);
-  myPicker = createColorPicker('rgb(0,0,0)');
-  myPicker.position(0, 500);
+  frameRate(100);
+  smooth();
 }
 
-let f = 0;
-let spring = 0.4;
-let friction = 0.45;
-let v = 0.5;
-let r = 0;
-let vx = 0;
-let vy = 0;
-let splitNum = 100;
-let diff = 2;
-let x, y, oldX, oldY, oldR;
-
 function draw() {
+  
+  let brushSize = 10;
+  let r = 0;
+  let b = 0;
+  let g = 0;
+  let a = 50;
+  
   if (mouseIsPressed) {
-    if (!f) {
-      f = true;
-      x = mouseX;
-      y = mouseY;
-    }
-    vx += (mouseX - x) * spring;
-    vy += (mouseY - y) * spring;
-    vx *= friction;
-    vy *= friction;
+    // line from previous to current position
     
-    v += sqrt(vx * vx + vy * vy) - v;
-    v *= 0.55;
-
-    oldR = r;
-    r = brushSize - v;
-    for (let i = 0; i < splitNum; ++i) {
-      oldX = x;
-      oldY = y;
-      x += vx / splitNum;
-      y += vy / splitNum;
-      oldR += (r - oldR) / splitNum;
-      if (oldR < 1) oldR = 1;
-      strokeWeight(oldR + diff);
-      let c = myPicker.color();
-      stroke(c);
-      line(x + random(0, 2), y + random(0, 2), oldX + random(0, 2), oldY + random(0, 2));
-      strokeWeight(oldR);
-      line(x + diff * random(0.1, 2), y + diff * random(0.1, 2), oldX + diff * random(0.1, 2), oldY + diff * random(0.1, 2));
-      line(x - diff * random(0.1, 2), y - diff * random(0.1, 2), oldX - diff * random(0.1, 2), oldY - diff * random(0.1, 2));
+    const dx = mouseX - pmouseX;
+    const dy = mouseY - pmouseY;
+    const steps = max(abs(dx), abs(dy));
+    strokeWeight(brushSize);
+    stroke(r,g,b,a)
+    
+    for (let i = 0; i < steps; i++) {
+      const x = pmouseX + (dx * i) / steps;
+      const y = pmouseY + (dy * i) / steps;
+      point(x, y);
     }
-  } else if (f) {
-    vx = vy = 0;
-    f = false;
   }
 }
     `;
@@ -211,7 +168,7 @@ function draw() {
       ref={iframeRef}
       style={{
         width: "100%",
-        height: "550px",
+        height: "100%",
         border: "1px solid gray",
         borderRadius: "12px",
         padding: "10px"
