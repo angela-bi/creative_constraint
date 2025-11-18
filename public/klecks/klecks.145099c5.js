@@ -2684,6 +2684,9 @@ class KlApp {
                 },
                 onSetPenBrushSize: (size)=>{
                     currentBrushUi.setSize(size);
+                },
+                onGetPenBrushSize: ()=>{
+                    return this.brushSettingService.getSize();
                 }
             }),
             writable: false
@@ -2816,6 +2819,13 @@ class KlApp {
      */ setBrushSize(size) {
         if (!this.brushSettingService) throw new Error('App not initialized');
         this.brushSettingService.setSize(size);
+    }
+    /**
+     * Get the current brush size.
+     * @returns The current brush size (actual value, not display value).
+     */ getBrushSize() {
+        if (!this.brushSettingService) throw new Error('App not initialized');
+        return this.brushSettingService.getSize();
     }
     getProject() {
         return this.klCanvas.getProject();
@@ -42454,13 +42464,18 @@ function createConsoleApi(p) {
         },
         help: ()=>{
             const helpText = `KL.draw({x: number; y: number}[]) // draw a line
-KL.help() // print help${p.onSetPenBrushSize ? '\nKL.setPenBrushSize(size: number) // set pen brush size (0.5-100)' : ''}
+KL.help() // print help${p.onSetPenBrushSize ? '\nKL.setPenBrushSize(size: number) // set pen brush size (0.5-100)' : ''}${p.onGetPenBrushSize ? '\nKL.getPenBrushSize() // get current pen brush size' : ''}
 `;
             console.log(helpText);
         },
         ...p.onSetPenBrushSize ? {
             setPenBrushSize: (size)=>{
                 p.onSetPenBrushSize(size);
+            }
+        } : {},
+        ...p.onGetPenBrushSize ? {
+            getPenBrushSize: ()=>{
+                return p.onGetPenBrushSize();
             }
         } : {}
     });

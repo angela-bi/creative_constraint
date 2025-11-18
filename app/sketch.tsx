@@ -156,19 +156,55 @@ const sampleInterval = 600; // how many times p5 sends the avg data
 function samplePixels() {
   loadPixels();
   const snapshot = new Uint8ClampedArray(pixels);
-  const avg = averageColor(snapshot);
-  sendData({ avg });
+
+  const w = width;
+  const h = height;
+
+  const result = averageQuadrants(snapshot, w, h);
+  sendAvg(result);
 }
 
-function averageColor(pixels) {
-  let r = 0, g = 0, b = 0;
-  const count = pixels.length / 4;
-  for (let i = 0; i < pixels.length; i += 4) {
-    r += pixels[i];
-    g += pixels[i + 1];
-    b += pixels[i + 2];
+function averageQuadrants(pixels, w, h) {
+  const midX = Math.floor(w / 2);
+  const midY = Math.floor(h / 2);
+
+  // accumulators: tl, tr, bl, br
+  const sums = {
+    tl: [0, 0, 0, 0], // r,g,b,count
+    tr: [0, 0, 0, 0],
+    bl: [0, 0, 0, 0],
+    br: [0, 0, 0, 0],
+  };
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = (x + y * w) * 4;
+      const r = pixels[idx];
+      const g = pixels[idx + 1];
+      const b = pixels[idx + 2];
+
+      let q;
+      if (x < midX && y < midY) q = "tl";
+      else if (x >= midX && y < midY) q = "tr";
+      else if (x < midX && y >= midY) q = "bl";
+      else q = "br";
+
+      sums[q][0] += r;
+      sums[q][1] += g;
+      sums[q][2] += b;
+      sums[q][3] += 1;
+    }
   }
-  return [r / count, g / count, b / count];
+
+  // compute averages
+  const avg = {
+    tl: sums.tl[3] ? [sums.tl[0] / sums.tl[3], sums.tl[1] / sums.tl[3], sums.tl[2] / sums.tl[3]] : [0,0,0],
+    tr: sums.tr[3] ? [sums.tr[0] / sums.tr[3], sums.tr[1] / sums.tr[3], sums.tr[2] / sums.tr[3]] : [0,0,0],
+    bl: sums.bl[3] ? [sums.bl[0] / sums.bl[3], sums.bl[1] / sums.bl[3], sums.bl[2] / sums.bl[3]] : [0,0,0],
+    br: sums.br[3] ? [sums.br[0] / sums.br[3], sums.br[1] / sums.br[3], sums.br[2] / sums.br[3]] : [0,0,0],
+  };
+
+  return avg;
 }
 
 colorPicked = [237, 37, 93];
@@ -177,7 +213,7 @@ colorPicked = [237, 37, 93];
 function setup() {
   window.addEventListener("message", (event) => {
     if (event.data?.type === "updateColor") {
-      const { r, g, b } = event.data.payload;
+      const { tl, tr, bl, br } = event.data.payload;
       console.log('event data payload', event.data.payload)
       colorPicked = [event.data.payload.rgb[0], event.data.payload.rgb[1], event.data.payload.rgb[2]];
       console.log("Updated colorPicked:", colorPicked);
@@ -185,25 +221,25 @@ function setup() {
   });
 
   pixelDensity(1);
-  if (smallCanvas == true) {
-    createCanvas(700,450)
-  }
-  else {
+  // if (smallCanvas == true) {
+  //   createCanvas(450,450)
+  // }
+  // else {
   createCanvas(round(windowWidth * 0.98), round(windowHeight * 0.93));
-  }
+  // }
   background(255);
   // colorPicker = createColorPicker("#ed225d");
   // colorPicker.position(0, height + 5);
   // sliderDrops = createSlider(100, 600, 100);
   // sliderDrops.position(70, height + 5);
-  buttonDry = createButton("Dry All");
-  buttonDry.position(210, height + 5);
-  buttonWet = createButton("Keep Wet");
-  buttonWet.position(270, height + 5);
-  buttonDefault = createButton("Default Dry");
-  buttonDefault.position(350, height + 5);
-  state = createElement("state", "Default");
-  state.position(450, height + 5);
+  // buttonDry = createButton("Dry All");
+  // buttonDry.position(210, height + 5);
+  // buttonWet = createButton("Keep Wet");
+  // buttonWet.position(270, height + 5);
+  // buttonDefault = createButton("Default Dry");
+  // buttonDefault.position(350, height + 5);
+  // state = createElement("state", "Default");
+  // state.position(450, height + 5);
 
   // fill the arrays with white color
   for (let x = 0; x < width; x++) {
@@ -216,9 +252,9 @@ function setup() {
 }
 
 function draw() {
-  buttonDry.mousePressed(dry);
-  buttonWet.mousePressed(wet);
-  buttonDefault.mousePressed(defaultDry);
+  // buttonDry.mousePressed(dry);
+  // buttonWet.mousePressed(wet);
+  // buttonDefault.mousePressed(defaultDry);
   // paintDrop = sliderDrops.value();
   paintDrop = 70;
 
@@ -471,8 +507,8 @@ function keyTyped() {
       <body>
         <script>
           // Allow p5 code to send structured data to parent
-          window.sendData = (data) => {
-            window.parent.postMessage({ type: "data", payload: data }, "*");
+          window.sendAvg = (Avg) => {
+            window.parent.postMessage({ type: "data", payload: Avg }, "*");
           };
 
           try {
@@ -498,7 +534,7 @@ function keyTyped() {
   
     // Send color updates to iframe
     if (colors.length > 0 && iframe.contentWindow) {
-      console.log('sketchPickerColor: ', activeColor)
+      // console.log('sketchPickerColor: ', activeColor)
       setColor1([colors[activeColor].rgb[0], colors[activeColor].rgb[1], colors[activeColor].rgb[2]]) // need to write a function to convert between types
       //console.log('color1: ', color1)
       iframe.contentWindow.postMessage(
@@ -509,14 +545,14 @@ function keyTyped() {
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === "data") {
-        const { avg } = event.data.payload;
-        console.log("Received avg:", avg);
-        setAvg(avg)
+        const { tl, tr, bl, br } = event.data.payload;
+        console.log('tl tr bl br', tl, tr, bl, br)
+        //setAvg(avg)
 
         // console.log('color1: ', color1)
-        const mix_ratio = computeMixRatio(colors[activeColor].rgb!, colors[0].rgb, avg)
-        console.log('mix_ratio: ', mix_ratio)
-        setRatio([mix_ratio['ratioC1'], mix_ratio['ratioC2']]) // this can be used by any input aka any color
+        //const mix_ratio = computeMixRatio(colors[activeColor].rgb!, colors[0].rgb, avg)
+        //console.log('mix_ratio: ', mix_ratio)
+        //setRatio([mix_ratio['ratioC1'], mix_ratio['ratioC2']]) // this can be used by any input aka any color
         //console.log('3 color mix ratio: ', mix3Colors(pink, blue, white, avg))
       }
     };

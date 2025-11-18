@@ -30,10 +30,12 @@ export default function HomePage() {
 
   // sound level
   useEffect(() => {
-    let audioCtx: AudioContext | null = null;
-    let analyser: AnalyserNode | null = null;
-    let source: MediaStreamAudioSourceNode | null = null;
+    let audioCtx: AudioContext;
+    let analyser: AnalyserNode;
+    let source: MediaStreamAudioSourceNode;
     let rafId: number;
+  
+    const soundLevelRef = { current: 0 };
   
     navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
       audioCtx = new AudioContext();
@@ -44,11 +46,12 @@ export default function HomePage() {
       const buffer = new Uint8Array(analyser.fftSize);
   
       const tick = () => {
-        if (audioCtx && audioCtx.state === "suspended") {
+        if (audioCtx.state === "suspended") {
           audioCtx.resume();
         }
   
-        analyser!.getByteTimeDomainData(buffer);
+        analyser.getByteTimeDomainData(buffer);
+  
         let sum = 0;
         for (let i = 0; i < buffer.length; i++) {
           const v = (buffer[i] - 128) / 128;
@@ -56,20 +59,24 @@ export default function HomePage() {
         }
         const rms = Math.sqrt(sum / buffer.length);
   
-        // smooth the sound level to avoid jitter
-        setSoundLevel((prev) => prev * 0.8 + rms * 0.2);
+        // smooth using the ref — no rerender every frame
+        soundLevelRef.current =
+          soundLevelRef.current * 0.8 + rms * 0.2;
+  
+        setSoundLevel(soundLevelRef.current);
   
         rafId = requestAnimationFrame(tick);
       };
+  
       tick();
     });
   
     return () => {
-      if (rafId) cancelAnimationFrame(rafId);
+      cancelAnimationFrame(rafId);
       audioCtx?.close();
       source?.disconnect();
     };
-  }, []);
+  }, []);  
   
   return (
     <main className="p-6">
@@ -84,7 +91,7 @@ export default function HomePage() {
           <div style={{ flex: "2" }}>
             <KlecksDrawing
               ratio={ratio}
-              brushSize={ratio[0]}
+              soundLevel={soundLevel}
             />
             {/* <DrawingSoftware 
               ratio={ratio}

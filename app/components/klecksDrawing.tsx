@@ -1,179 +1,132 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 
 type Ratio = [number, number];
 
 type DrawingProps = {
   ratio: Ratio;
-  setRatio?: React.Dispatch<React.SetStateAction<Ratio>>;
-  colors?: { r: number; g: number; b: number };
-  brushSize?: number; // Optional brush size prop
+  soundLevel: number;
 };
 
-export default function DrawingSoftware({ 
-  ratio, 
-  setRatio, 
-  colors,
-  brushSize 
-}: DrawingProps) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  
-  // Extract brush size from ratio if not provided directly
-  // ratio[0] is brush.width according to page.tsx
-  const actualBrushSize = brushSize ?? ratio[0];
+export type KlecksDrawingRef = {
+  getBrushSize: () => Promise<number | null>;
+  setBrushSize: (size: number) => void;
+};
 
-  // Send brush size to Klecks when it changes
+const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ ratio, soundLevel }, ref) => {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    getBrushSize: () => {
+      return new Promise<number | null>(resolve => {
+        const iframe = iframeRef.current;
+        if (!iframe?.contentWindow) return resolve(null);
+
+        const requestId = `${Date.now()}-${Math.random()}`;
+
+        const handler = (ev: MessageEvent) => {
+          if (ev.data?.type === "brushSizeResponse" && ev.data.requestId === requestId) {
+            window.removeEventListener("message", handler);
+            resolve(ev.data.size ?? null);
+          }
+        };
+
+        window.addEventListener("message", handler);
+        iframe.contentWindow.postMessage({ type: "getBrushSize", requestId }, "*");
+
+        // Timeout fallback
+        setTimeout(() => {
+          window.removeEventListener("message", handler);
+          resolve(null);
+        }, 3000);
+      });
+    },
+    setBrushSize: (size: number) => {
+      iframeRef.current?.contentWindow?.postMessage({ type: "setBrushSize", size }, "*");
+    },
+  }));
+
+  // Update ratio whenever it changes
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe?.contentWindow) return;
-
-    // Only send if brushSize is a valid number
-    if (typeof actualBrushSize !== 'number' || isNaN(actualBrushSize) || actualBrushSize <= 0) {
-      return;
-    }
-
-    const sendBrushSize = () => {
-      iframe.contentWindow?.postMessage(
-        { type: "setBrushSize", size: actualBrushSize },
-        "*"
-      );
-    };
-
-    // Listen for ready message from iframe
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === 'klecksReady') {
-        sendBrushSize();
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-
-    // Also try sending after a delay as fallback
-    const timeout = setTimeout(() => {
-      sendBrushSize();
-    }, 2000);
-
-    return () => {
-      window.removeEventListener('message', handleMessage);
-      clearTimeout(timeout);
-    };
-  }, [actualBrushSize]);
-
-  // Listening for ratio (your existing code)
-  useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-
-    const sendRatio = () => {
-      iframe.contentWindow?.postMessage(
-        { type: "updateRatio", payload: { ratio } },
-        "*"
-      );
-    };
-
-    const handleLoad = () => {
-      sendRatio();
-    };
-
-    iframe.addEventListener("load", handleLoad);
-
-    if (iframe.contentWindow) {
-      sendRatio();
-    }
-
-    return () => {
-      iframe.removeEventListener("load", handleLoad);
-    };
+    iframe.contentWindow.postMessage({ type: "updateRatio", payload: { ratio } }, "*");
   }, [ratio]);
 
-  // iframe with Klecks
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow) return;
+    iframe.contentWindow.postMessage({ type: "updateSoundLevel", payload: { soundLevel } }, "*");
+  }, [soundLevel]);
+
+  // Inject Klecks into iframe
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
 
-    // Get the origin from the parent window
     const origin = window.location.origin;
-
-    // HTML content that loads Klecks
     const html = `
       <!DOCTYPE html>
       <html lang="en">
-      <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-        <title>Klecks</title>
-        <style>
-          html, body { 
-            margin: 0; 
-            padding: 0; 
-            overflow: hidden; 
-            width: 100%;
-            height: 100%;
-          }
-        </style>
-      </head>
-      <body>
+      <head><meta charset="UTF-8"><title>Klecks</title></head>
+      <body style="margin:0; overflow:hidden;">
         <script>
-          // Load embed.js dynamically and wait for it to load
           (function() {
-            let klecksInstance = null;
-            
+            let KL = null;
+            let lastBrushSize = 4; // default
+
             const script = document.createElement('script');
             script.src = '${origin}/klecks/embed.js';
-            script.onload = function() {
-              // Initialize Klecks after script loads
-              klecksInstance = new Klecks({
-                onSubmit: async (onSuccess, onError) => {
-                  onSuccess();
-                },
+            script.onload = () => {
+              KL = new Klecks({
+                onSubmit: (success) => success(),
+                onGetPenBrushSize: () => lastBrushSize
               });
 
-              // Create a default project
-              klecksInstance.openProject({
+              // Create default project
+              KL.openProject({
                 width: 1000,
                 height: 1000,
-                layers: [{
-                  name: 'Background',
-                  isVisible: true,
-                  opacity: 1,
-                  mixModeStr: 'source-over',
-                  image: { fill: '#fff' },
-                }]
+                layers: [{ name: 'Background', isVisible: true, opacity: 1, mixModeStr: 'source-over', image: { fill: '#fff' } }]
               });
 
-              // Notify parent that Klecks is ready
-              if (window.parent) {
-                window.parent.postMessage({ type: 'klecksReady' }, '*');
-              }
-
-              // Listen for messages from parent
-              window.addEventListener('message', (event) => {
-                if (event.data && event.data.type === 'updateRatio') {
-                  // Handle ratio updates if needed
-                }
-                if (event.data && event.data.type === 'setBrushSize') {
-                  // Handle brush size updates
-                  const size = event.data.size;
-                  if (klecksInstance && typeof size === 'number' && !isNaN(size) && size > 0) {
-                    // Try different possible API methods for setting brush size
-                    if (typeof klecksInstance.setBrushSize === 'function') {
-                      klecksInstance.setBrushSize(size);
-                    } else if (klecksInstance.brush && typeof klecksInstance.brush.setSize === 'function') {
-                      klecksInstance.brush.setSize(size);
-                    } else if (klecksInstance.setBrushWidth && typeof klecksInstance.setBrushWidth === 'function') {
-                      klecksInstance.setBrushWidth(size);
-                    } else if (klecksInstance.tool && klecksInstance.tool.brush && typeof klecksInstance.tool.brush.setSize === 'function') {
-                      klecksInstance.tool.brush.setSize(size);
-                    } else {
-                      console.warn('Klecks API: Could not find method to set brush size. Available methods:', Object.keys(klecksInstance));
-                    }
-                  }
-                }
-              });
-            };
-            script.onerror = function() {
-              console.error('Failed to load Klecks embed.js');
+              window.parent.postMessage({ type: 'klecksReady' }, '*');
             };
             document.head.appendChild(script);
+
+            let soundLevel = 0; // default
+            window.addEventListener('message', (event) => {
+              const msg = event.data;
+              if (!msg || typeof msg !== 'object') return;
+
+              if (msg.type === 'getBrushSize') {
+                const size = KL?.getPenBrushSize ? KL.getPenBrushSize() : lastBrushSize;
+                window.parent.postMessage({ type: 'brushSizeResponse', size, requestId: msg.requestId }, '*');
+                console.log('size', size)
+              }
+
+              // if (msg.type === 'setBrushSize' && typeof msg.size === 'number') {
+              //   lastBrushSize = msg.size;
+              //   console.log('lastBrushSize', lastBrushSize)
+              //   KL?.setPenBrushSize(msg.size);
+              // }
+
+              if (msg.type === 'updateSoundLevel') {
+                // console.log('msg.payload.soundLevel', msg.payload.soundLevel)
+                soundLevel = msg.payload.soundLevel;
+              }
+
+              if (msg.type === 'updateRatio') {
+                const ratio = msg.payload.ratio[1]
+                // soundLevel = msg.payload.soundLevel
+                console.log('soundLevel', soundLevel)
+                console.log('KL', KL.getBrushSize())
+                const size = KL?.getBrushSize ? KL.getBrushSize() : lastBrushSize;
+                //console.log('getpenbrushsize before changing', KL.getPenBrushSize())
+                KL?.setBrushSize(ratio * soundLevel * 1000)
+                //console.log('getpenbrushsize after changing', KL.getPenBrushSize())
+              }
+            });
           })();
         </script>
       </body>
@@ -184,23 +137,17 @@ export default function DrawingSoftware({
     const url = URL.createObjectURL(blob);
     iframe.src = url;
 
-    return () => {
-      URL.revokeObjectURL(url);
-    };
+    return () => URL.revokeObjectURL(url);
   }, []);
 
   return (
     <iframe
-      sandbox="allow-scripts allow-same-origin"
       ref={iframeRef}
-      style={{
-        width: "100%",
-        height: "100%",
-        border: "1px solid gray",
-        borderRadius: "12px",
-        padding: "10px"
-      }}
+      sandbox="allow-scripts allow-same-origin"
+      style={{ width: "100%", height: "100%", border: "1px solid gray", borderRadius: "12px" }}
     />
   );
-}
+});
 
+KlecksDrawing.displayName = "KlecksDrawing";
+export default KlecksDrawing;
