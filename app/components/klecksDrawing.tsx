@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
-
-type Ratio = [number, number];
+import { RGB } from "../page";
 
 type DrawingProps = {
-  ratio: Ratio;
+  avg: RGB[];
   soundLevel: number;
 };
 
@@ -12,7 +11,7 @@ export type KlecksDrawingRef = {
   setBrushSize: (size: number) => void;
 };
 
-const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ ratio, soundLevel }, ref) => {
+const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ avg, soundLevel }, ref) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Expose methods to parent via ref
@@ -50,8 +49,9 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ ratio, sound
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe?.contentWindow) return;
-    iframe.contentWindow.postMessage({ type: "updateRatio", payload: { ratio } }, "*");
-  }, [ratio]);
+    // console.log('ratio', ratio)
+    iframe.contentWindow.postMessage({ type: "updateAvg", payload: { avg } }, "*");
+  }, [avg]);
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -73,8 +73,72 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ ratio, sound
         <script>
           (function() {
             let KL = null;
-            let lastBrushSize = 4; // default
+            let lastBrushSize = 50;
+            let brushReady = false;
+            const pendingMsgs = [];
 
+            // helper sum function, should generalize to other colors
+            function sumAvgs(avgs, alpha) {
+              let total = 0
+              for (let i=0; i<10; i++) {
+                total += avgs[i][0] * i * alpha
+              }
+              // console.log(total)
+              return total
+            }
+
+            // central message handler
+            function handleMessage(msg) {
+              const inst = KL?.instance;
+              if (!inst) return;
+
+              const tool = inst.brushTool;
+              const brush = tool?.brush;
+
+              switch (msg.type) {
+
+                case "setBrushSize":
+                  if (brush) {
+                    brush.size = msg.size;
+                    lastBrushSize = msg.size;
+                  }
+                  break;
+
+                case "getBrushSize":
+                  window.parent.postMessage({
+                    type: "brushSizeResponse",
+                    requestId: msg.requestId,
+                    size: brush ? brush.size : null
+                  }, "*");
+                  break;
+
+                case "updateSoundLevel":
+                  window.soundLevel = msg.payload.soundLevel;
+                  break;
+
+                case "updateAvg":
+                  window.avgs = msg.payload.avg;
+                  console.log('avgs', avgs)
+                  KL.setBrushSize(sumAvgs(avgs, 0.002))
+                  break;
+              }
+            }
+
+            // message listener: queue until ready
+            window.addEventListener('message', (event) => {
+              const msg = event.data;
+              if (!msg || typeof msg !== 'object') return;
+
+              // if brush not installed yet, queue messages that affect brush
+              const requiresReady = ['setBrushSize', 'setBrushOpacity', 'getBrushSize', 'updateAvg'];
+              if (!brushReady && requiresReady.includes(msg.type)) {
+                pendingMsgs.push(msg);
+                return;
+              }
+              handleMessage(msg);
+            });
+
+            // load Klecks script and initialize KL
             const script = document.createElement('script');
             script.src = '${origin}/klecks/embed.js';
             script.onload = () => {
@@ -83,52 +147,40 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ ratio, sound
                 onGetPenBrushSize: () => lastBrushSize
               });
 
-              // Create default project
               KL.openProject({
                 width: 1000,
                 height: 1000,
-                layers: [{ name: 'Background', isVisible: true, opacity: 1, mixModeStr: 'source-over', image: { fill: '#fff' } }]
+                layers: [
+                  {
+                    name: "Background",
+                    isVisible: true,
+                    opacity: 1,
+                    mixModeStr: "source-over",
+                    image: { fill: "#ffffff" }
+                  }
+                ]
               });
 
-              window.parent.postMessage({ type: 'klecksReady' }, '*');
+              console.log('KL', KL)
+
+              const waitReady = setInterval(() => {
+                if (KL) {
+                  brushReady = true;
+                  clearInterval(waitReady);
+
+                  // flush queued messages
+                  console.log('pendingMsgs', pendingMsgs)
+                  pendingMsgs.forEach(msg => handleMessage(msg));
+                  pendingMsgs.length = 0;
+
+                  window.parent.postMessage({ type: "klecksReady" }, "*");
+                }
+              }, 50);
             };
             document.head.appendChild(script);
 
-            let soundLevel = 0; // default
-            window.addEventListener('message', (event) => {
-              const msg = event.data;
-              if (!msg || typeof msg !== 'object') return;
-
-              if (msg.type === 'getBrushSize') {
-                const size = KL?.getPenBrushSize ? KL.getPenBrushSize() : lastBrushSize;
-                window.parent.postMessage({ type: 'brushSizeResponse', size, requestId: msg.requestId }, '*');
-                console.log('size', size)
-              }
-
-              // if (msg.type === 'setBrushSize' && typeof msg.size === 'number') {
-              //   lastBrushSize = msg.size;
-              //   console.log('lastBrushSize', lastBrushSize)
-              //   KL?.setPenBrushSize(msg.size);
-              // }
-
-              if (msg.type === 'updateSoundLevel') {
-                // console.log('msg.payload.soundLevel', msg.payload.soundLevel)
-                soundLevel = msg.payload.soundLevel;
-              }
-
-              if (msg.type === 'updateRatio') {
-                const ratio = msg.payload.ratio[1]
-                // soundLevel = msg.payload.soundLevel
-                console.log('soundLevel', soundLevel)
-                console.log('KL', KL.getBrushSize())
-                const size = KL?.getBrushSize ? KL.getBrushSize() : lastBrushSize;
-                //console.log('getpenbrushsize before changing', KL.getPenBrushSize())
-                KL?.setBrushSize(ratio * soundLevel * 1000)
-                //console.log('getpenbrushsize after changing', KL.getPenBrushSize())
-              }
-            });
           })();
-        </script>
+          </script>
       </body>
       </html>
     `;

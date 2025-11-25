@@ -4,20 +4,19 @@ import React, { useEffect, useRef, useState } from "react";
 import { SketchPicker } from 'react-color';
 import { ColorResult } from "react-color";
 import { CirclePicker } from "react-color";
-import { Ratio } from "./page";
+// import { Ratio } from "./page";
 import { MappingList } from "./components/mappingList";
 import { RGB, Color } from "./page";
 
 type SketchProps = {
   // ratio: Ratio;
-  setRatio: React.Dispatch<React.SetStateAction<Ratio>>;
+  setAvg: React.Dispatch<React.SetStateAction<RGB[]>>;
   colors: Color[];
   activeColor: number;
 };
 
-export default function Sketch({ setRatio, colors, activeColor }: SketchProps) {
+export default function Sketch({ setAvg, colors, activeColor }: SketchProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [avg, setAvg] = useState<RGB | null>(null);
   const [color1, setColor1] = useState<RGB | null>([237, 37, 93]);
   const [color2, setColor2] = useState<RGB | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -124,6 +123,96 @@ export default function Sketch({ setRatio, colors, activeColor }: SketchProps) {
     };
   }
 
+  type RGB = [number, number, number];
+
+  function mix4Colors(
+    c1: RGB, c2: RGB, c3: RGB, c4: RGB,
+    target: RGB
+  ) {
+    const toLinear = (c: RGB) => c.map(v => v / 255) as RGB;
+
+    const a = toLinear(c1);
+    const b = toLinear(c2);
+    const c = toLinear(c3);
+    const d = toLinear(c4);
+    const t = toLinear(target);
+
+    // 4×4 system with normalization row
+    const M = [
+      [a[0], b[0], c[0], d[0]],
+      [a[1], b[1], c[1], d[1]],
+      [a[2], b[2], c[2], d[2]],
+      [1,    1,    1,    1   ],
+    ];
+
+    const T = [t[0], t[1], t[2], 1];
+
+    // ---- 4x4 determinant ----
+    const det4 = (m: number[][]) => {
+      const [
+        a, b, c, d,
+      ] = m;
+
+      const det3 = (m3: number[][]) =>
+        m3[0][0] * (m3[1][1] * m3[2][2] - m3[1][2] * m3[2][1]) -
+        m3[0][1] * (m3[1][0] * m3[2][2] - m3[1][2] * m3[2][0]) +
+        m3[0][2] * (m3[1][0] * m3[2][1] - m3[1][1] * m3[2][0]);
+
+      return (
+        a[0] * det3([b.slice(1), c.slice(1), d.slice(1)]) -
+        a[1] * det3([[b[0], b[2], b[3]], [c[0], c[2], c[3]], [d[0], d[2], d[3]]]) +
+        a[2] * det3([[b[0], b[1], b[3]], [c[0], c[1], c[3]], [d[0], d[1], d[3]]]) -
+        a[3] * det3([[b[0], b[1], b[2]], [c[0], c[1], c[2]], [d[0], d[1], d[2]]])
+      );
+    };
+
+    const det = det4(M);
+    if (Math.abs(det) < 1e-9) {
+      console.warn("Matrix near singular (colors too similar)");
+      return { r1: 0, r2: 0, r3: 0, r4: 1 };
+    }
+
+    // ---- Compute inverse (via adjugate / cofactors) ----
+    const cofactor = (m: number[][], row: number, col: number) => {
+      // remove row & col → 3×3 matrix
+      const sub = m
+        .filter((_, r) => r !== row)
+        .map(r => r.filter((_, c) => c !== col));
+
+      const det3 =
+        sub[0][0] * (sub[1][1] * sub[2][2] - sub[1][2] * sub[2][1]) -
+        sub[0][1] * (sub[1][0] * sub[2][2] - sub[1][2] * sub[2][0]) +
+        sub[0][2] * (sub[1][0] * sub[2][1] - sub[1][1] * sub[2][0]);
+
+      // sign alternates
+      return ((row + col) % 2 === 0 ? 1 : -1) * det3;
+    };
+
+    const inv = Array.from({ length: 4 }, (_, r) =>
+      Array.from({ length: 4 }, (_, c) => cofactor(M, c, r) / det)
+    );
+
+    // multiply inv * T
+    const w = [
+      inv[0][0]*T[0] + inv[0][1]*T[1] + inv[0][2]*T[2] + inv[0][3]*T[3],
+      inv[1][0]*T[0] + inv[1][1]*T[1] + inv[1][2]*T[2] + inv[1][3]*T[3],
+      inv[2][0]*T[0] + inv[2][1]*T[1] + inv[2][2]*T[2] + inv[2][3]*T[3],
+      inv[3][0]*T[0] + inv[3][1]*T[1] + inv[3][2]*T[2] + inv[3][3]*T[3],
+    ];
+
+    // clamp and renormalize (to avoid negative ratios)
+    let clamped = w.map(v => Math.max(0, v));
+    const s = clamped.reduce((a,b)=>a+b, 0);
+    if (s > 0) clamped = clamped.map(v => v / s);
+
+    return {
+      ratio1: clamped[0],
+      ratio2: clamped[1],
+      ratio3: clamped[2],
+      ratio4: clamped[3],
+    };
+  }
+
 
   useEffect(() => {
     setMounted(true)
@@ -160,8 +249,56 @@ function samplePixels() {
   const w = width;
   const h = height;
 
-  const result = averageQuadrants(snapshot, w, h);
+  const result = averageColumnColors(snapshot)
   sendAvg(result);
+  console.log('average color', result)
+}
+
+function averageColumnColors() {
+  const numCols = 10;
+  const colWidth = width / numCols; // 450 / 10 = 45
+  let img = get(); // snapshot of canvas pixels
+  img.loadPixels();
+
+  let results = [];
+
+  for (let c = 0; c < numCols; c++) {
+    let rSum = 0, gSum = 0, bSum = 0, count = 0;
+
+    // Column x-range
+    let xStart = Math.floor(c * colWidth);
+    let xEnd = Math.floor((c + 1) * colWidth);
+
+    for (let x = xStart; x < xEnd; x++) {
+      for (let y = 0; y < height; y++) {
+        let idx = 4 * (y * width + x);
+        rSum += img.pixels[idx];
+        gSum += img.pixels[idx + 1];
+        bSum += img.pixels[idx + 2];
+        count++;
+      }
+    }
+
+    results.push([
+      rSum / count,
+      gSum / count,
+      bSum / count]
+    );
+  }
+
+  return results;
+}
+
+
+function averageColor(pixels) {
+  let r = 0, g = 0, b = 0;
+  const count = pixels.length / 4;
+  for (let i = 0; i < pixels.length; i += 4) {
+    r += pixels[i];
+    g += pixels[i + 1];
+    b += pixels[i + 2];
+  }
+  return [r / count, g / count, b / count];
 }
 
 function averageQuadrants(pixels, w, h) {
@@ -209,25 +346,55 @@ function averageQuadrants(pixels, w, h) {
 
 colorPicked = [237, 37, 93];
 
+let isPointerDown = false;
+let pointerX = 0;
+let pointerY = 0;
+let pointerPressure = 1.0;
+
+function setupPointerSupport(canvasElt) {
+  canvasElt.addEventListener('pointerdown', (e) => {
+    isPointerDown = true;
+
+    pointerX = e.offsetX;
+    pointerY = e.offsetY;
+    pointerPressure = e.pressure || 1.0;
+
+    prevMouseX = pointerX;
+    prevMouseY = pointerY;
+  });
+
+  canvasElt.addEventListener('pointermove', (e) => {
+    pointerX = e.offsetX;
+    pointerY = e.offsetY;
+    pointerPressure = e.pressure || 1.0;
+  });
+
+  canvasElt.addEventListener('pointerup', () => {
+    isPointerDown = false;
+  });
+
+  canvasElt.style.touchAction = "none";
+}
 
 function setup() {
   window.addEventListener("message", (event) => {
     if (event.data?.type === "updateColor") {
-      const { tl, tr, bl, br } = event.data.payload;
-      console.log('event data payload', event.data.payload)
+      //const { tl, tr, bl, br } = event.data.payload;
+      // console.log(tl, tr, bl, br)
+      //console.log('event data payload', event.data.payload)
       colorPicked = [event.data.payload.rgb[0], event.data.payload.rgb[1], event.data.payload.rgb[2]];
-      console.log("Updated colorPicked:", colorPicked);
+      //console.log("Updated colorPicked:", colorPicked);
     }
   });
 
   pixelDensity(1);
-  // if (smallCanvas == true) {
-  //   createCanvas(450,450)
-  // }
-  // else {
-  createCanvas(round(windowWidth * 0.98), round(windowHeight * 0.93));
-  // }
+
+  let c = createCanvas(450,450);
+
   background(255);
+
+  setupPointerSupport(c.elt);
+
   // colorPicker = createColorPicker("#ed225d");
   // colorPicker.position(0, height + 5);
   // sliderDrops = createSlider(100, 600, 100);
@@ -284,36 +451,28 @@ function defaultDry() {
 // add paint when clicking - start with dragging
 function addPaint() {
   if (
+    isPointerDown &&
     mouseIsPressed &&
     mouseX >= 0 &&
     mouseX <= width &&
     mouseY >= 0 &&
     mouseY <= height
   ) {
-    let distance = dist(prevMouseX, prevMouseY, mouseX, mouseY);
+    let distance = dist(prevMouseX, prevMouseY, pointerX, pointerY);
     let numPoints = floor(distance / 1); // larger number = more gaps and fewer points; these two lines from George Profenza, noted below.
-    drawLinePoints(prevMouseX, prevMouseY, mouseX, mouseY, numPoints);
+    drawLinePoints(prevMouseX, prevMouseY, pointerX, pointerY, numPoints);
 
     // add paint when clicking in one place
-    if (mouseX == prevMouseX && mouseY == prevMouseY) {
+    if (pointerX == prevMouseX && pointerY == prevMouseY) {
       renderPoints(mouseX, mouseY);
     }
   }
-  prevMouseX = mouseX;
-  prevMouseY = mouseY;
+  prevMouseX = pointerX;
+  prevMouseY = pointerY;
+
   // preventing a wrap around error when dragging off canvas and back on
-  if (mouseIsPressed && mouseX < 0) {
-    prevMouseX = 0;
-  }
-  if (mouseIsPressed && mouseX > width - 1) {
-    prevMouseX = width - 1;
-  }
-  if (mouseIsPressed && mouseY < 0) {
-    prevMouseY = 0;
-  }
-  if (mouseIsPressed && mouseY > height - 1) {
-    prevMouseY = height - 1;
-  }
+  prevMouseX = constrain(prevMouseX, 0, width - 1);
+  prevMouseY = constrain(prevMouseY, 0, height - 1);
 }
 
 // calculate points when dragging
@@ -545,14 +704,15 @@ function keyTyped() {
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === "data") {
-        const { tl, tr, bl, br } = event.data.payload;
-        console.log('tl tr bl br', tl, tr, bl, br)
-        //setAvg(avg)
+        const avg = event.data.payload;
+        //('event.data.payload', event.data.payload)
+        setAvg(avg)
 
-        // console.log('color1: ', color1)
-        //const mix_ratio = computeMixRatio(colors[activeColor].rgb!, colors[0].rgb, avg)
-        //console.log('mix_ratio: ', mix_ratio)
-        //setRatio([mix_ratio['ratioC1'], mix_ratio['ratioC2']]) // this can be used by any input aka any color
+        // const mix_ratio = mix3Colors(colors[1].rgb, colors[2].rgb, colors[3].rgb, avg)
+        
+        // console.log('mix_ratio: ', mix_ratio)
+        // setRatio([mix_ratio['ratio1'], mix_ratio['ratio2'], mix_ratio['ratio3']])
+        //setRatio([mix_ratio['ratioC1'], mix_ratio['ratioC2']])
         //console.log('3 color mix ratio: ', mix3Colors(pink, blue, white, avg))
       }
     };

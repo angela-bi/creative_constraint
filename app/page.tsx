@@ -8,7 +8,7 @@ import BrushPreview from "./components/brushPreview";
 import KlecksDrawing from "./components/klecksDrawing";
 import { MappingList } from "./components/mappingList";
 
-export type Ratio = [number, number]
+// export type Ratio = [number, number, number]
 
 export type RGB = [number, number, number]; // each 0–255
 export type Color = {name: string, rgb: RGB}
@@ -16,15 +16,18 @@ export type Color = {name: string, rgb: RGB}
 export default function HomePage() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [ratio, setRatio] = useState<Ratio>([1, 0]) // first one is brush.width, second is sound
+  const [avg, setAvg] = useState<RGB[]>([])
   const [soundLevel, setSoundLevel] = useState<number>(0);
 
   const white: Color = {name: 'white', rgb: [255, 255, 255]};
-  const pink: Color = {name: 'pink', rgb: [243, 121, 169]};
-  const blue: Color = {name: 'blue', rgb: [104, 115, 159]};
-  const green: Color = {name: 'green', rgb: [175, 210, 121]};
+  const red: Color = {name: 'pink', rgb: [255, 0, 0]};
+  const navy: Color = {name: 'blue', rgb: [104, 115, 159]};
+  const lime: Color = {name: 'green', rgb: [175, 210, 121]};
   const gray: Color = {name: 'gray', rgb: [210, 210, 210]};
-  const colors = [white, pink, blue, green, gray];
+  const pink: Color = {name: 'pink', rgb: [255, 0, 0]};
+  const green: Color = {name: 'green', rgb: [0, 255, 0]};
+  const blue: Color = {name: 'blue', rgb: [0, 0, 255]}
+  const colors = [white, pink, lime, navy, blue, pink, gray, green, red];
 
   const [activeColor, setActiveColor] = useState<number>(1)
 
@@ -59,7 +62,6 @@ export default function HomePage() {
         }
         const rms = Math.sqrt(sum / buffer.length);
   
-        // smooth using the ref — no rerender every frame
         soundLevelRef.current =
           soundLevelRef.current * 0.8 + rms * 0.2;
   
@@ -83,14 +85,14 @@ export default function HomePage() {
         <div style={{ display: "flex", flexDirection: "row", height: "100vh", width: "100%", gap: '20px'}}>
           <div style={{ flex: "1" }}>
             <Sketch
-              setRatio={setRatio}
+              setAvg={setAvg}
               colors={colors}
               activeColor={activeColor}
             />
           </div>
           <div style={{ flex: "2" }}>
             <KlecksDrawing
-              ratio={ratio}
+              avg={avg}
               soundLevel={soundLevel}
             />
             {/* <DrawingSoftware 

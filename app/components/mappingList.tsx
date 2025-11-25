@@ -75,7 +75,7 @@ export function MappingList({ colors, activeColor, setActiveColor, soundLevel }:
                 backgroundPosition: "center",
                 display: "flex",
                 flexDirection: "column",
-                transform: "rotate(20deg) scale(1.3)",
+                transform: "rotate(20deg) scale(1.2)",
             }}
             />
             {mappings.map((mapping) => {
@@ -91,7 +91,7 @@ export function MappingList({ colors, activeColor, setActiveColor, soundLevel }:
                             zIndex: 20,
                             top: `${pos.y}px`,
                             left: `${pos.x}px`,
-                            // backgroundColor: `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`,
+                            //backgroundColor: `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`,
                             backgroundImage: `url('/images/ellipse_${color.name}.png')`,
                             width: "200px",
                             height: "200px",
@@ -105,21 +105,21 @@ export function MappingList({ colors, activeColor, setActiveColor, soundLevel }:
                         }}
                         onClick={(e) => setActiveColor(id+1)}
                     >
-                        {id === 0 && ( // only render for first div
+                        {id === 0 && (
                             <div
                             style={{
-                                position: 'absolute',
+                                position: "absolute",
                                 zIndex: 30,
                                 bottom: "60px",
                                 left: "60px",
-                                width: `${soundLevel*200}%`,
+                                width: `${soundLevel * 200}%`,
                                 height: "20px",
                                 background: "gray",
                                 borderRadius: 4,
-                                transition: "height 0.2s linear fade",
+                                transition: "width 0.1s linear",
                                 pointerEvents: "none",
                             }}
-                        />
+                            />
                         )}
                     </div>
                 )
