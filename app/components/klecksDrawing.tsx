@@ -3,7 +3,7 @@ import { RGB } from "../page";
 
 type DrawingProps = {
   avg: RGB[];
-  soundLevel: number;
+  // soundLevel: number;
   setActiveColor: React.Dispatch<React.SetStateAction<RGB>>;
 };
 
@@ -12,7 +12,7 @@ export type KlecksDrawingRef = {
   setBrushSize: (size: number) => void;
 };
 
-const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ avg, soundLevel, setActiveColor }, ref) => {
+const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ avg, setActiveColor }, ref) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Expose methods to parent via ref
@@ -53,11 +53,11 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ avg, soundLe
     iframe.contentWindow.postMessage({ type: "updateAvg", payload: { avg } }, "*");
   }, [avg]);
 
-  useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe?.contentWindow) return;
-    iframe.contentWindow.postMessage({ type: "updateSoundLevel", payload: { soundLevel } }, "*");
-  }, [soundLevel]);
+  // useEffect(() => {
+  //   const iframe = iframeRef.current;
+  //   if (!iframe?.contentWindow) return;
+  //   iframe.contentWindow.postMessage({ type: "updateSoundLevel", payload: { soundLevel } }, "*");
+  // }, [soundLevel]);
 
   useEffect(() => {
     function handle(ev: MessageEvent) {

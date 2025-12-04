@@ -32,52 +32,52 @@ export default function HomePage() {
   const [activeColor, setActiveColor] = useState<RGB>([255, 255, 255])
 
   // sound level
-  useEffect(() => {
-    let audioCtx: AudioContext;
-    let analyser: AnalyserNode;
-    let source: MediaStreamAudioSourceNode;
-    let rafId: number;
+  // useEffect(() => {
+  //   let audioCtx: AudioContext;
+  //   let analyser: AnalyserNode;
+  //   let source: MediaStreamAudioSourceNode;
+  //   let rafId: number;
   
-    const soundLevelRef = { current: 0 };
+  //   const soundLevelRef = { current: 0 };
   
-    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-      audioCtx = new AudioContext();
-      analyser = audioCtx.createAnalyser();
-      source = audioCtx.createMediaStreamSource(stream);
-      source.connect(analyser);
+  //   navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+  //     audioCtx = new AudioContext();
+  //     analyser = audioCtx.createAnalyser();
+  //     source = audioCtx.createMediaStreamSource(stream);
+  //     source.connect(analyser);
   
-      const buffer = new Uint8Array(analyser.fftSize);
+  //     const buffer = new Uint8Array(analyser.fftSize);
   
-      const tick = () => {
-        if (audioCtx.state === "suspended") {
-          audioCtx.resume();
-        }
+  //     const tick = () => {
+  //       if (audioCtx.state === "suspended") {
+  //         audioCtx.resume();
+  //       }
   
-        analyser.getByteTimeDomainData(buffer);
+  //       analyser.getByteTimeDomainData(buffer);
   
-        let sum = 0;
-        for (let i = 0; i < buffer.length; i++) {
-          const v = (buffer[i] - 128) / 128;
-          sum += v * v;
-        }
-        const rms = Math.sqrt(sum / buffer.length);
+  //       let sum = 0;
+  //       for (let i = 0; i < buffer.length; i++) {
+  //         const v = (buffer[i] - 128) / 128;
+  //         sum += v * v;
+  //       }
+  //       const rms = Math.sqrt(sum / buffer.length);
   
-        soundLevelRef.current = rms ;
+  //       soundLevelRef.current = rms ;
   
-        setSoundLevel(Math.sqrt(soundLevelRef.current)*100);
+  //       setSoundLevel(Math.sqrt(soundLevelRef.current)*100);
   
-        rafId = requestAnimationFrame(tick);
-      };
+  //       rafId = requestAnimationFrame(tick);
+  //     };
   
-      tick();
-    });
+  //     tick();
+  //   });
   
-    return () => {
-      cancelAnimationFrame(rafId);
-      audioCtx?.close();
-      source?.disconnect();
-    };
-  }, []);  
+  //   return () => {
+  //     cancelAnimationFrame(rafId);
+  //     audioCtx?.close();
+  //     source?.disconnect();
+  //   };
+  // }, []);  
   
   return (
     <main className="p-6">
@@ -92,7 +92,7 @@ export default function HomePage() {
           <div style={{ flex: "2" }}>
             <KlecksDrawing
               avg={avg}
-              soundLevel={soundLevel}
+              // soundLevel={soundLevel}
               setActiveColor={setActiveColor}
             />
             {/* <DrawingSoftware 
