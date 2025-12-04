@@ -12,207 +12,51 @@ type SketchProps = {
   // ratio: Ratio;
   setAvg: React.Dispatch<React.SetStateAction<RGB[]>>;
   colors: Color[];
-  activeColor: number;
+  activeColor: RGB;
 };
 
 export default function Sketch({ setAvg, colors, activeColor }: SketchProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [color1, setColor1] = useState<RGB | null>([237, 37, 93]);
-  const [color2, setColor2] = useState<RGB | null>(null);
+  const [color, setColor] = useState<RGB | null>([237, 37, 93]);
   const [mounted, setMounted] = useState(false);
+  const binInputRef = useRef<HTMLInputElement>(null);
+  const pngInputRef = useRef<HTMLInputElement>(null);
 
-  // for 1 color and canvas
-  function computeMixRatio(c1: RGB, c2: RGB, target: RGB) {
-    // convert to linear RGB (undo sRGB gamma)
-    const toLinear = (c: number) =>
-      c <= 0.04045 * 255 ? c / (12.92 * 255) : Math.pow((c / 255 + 0.055) / 1.055, 2.4);
-
-    const lin = (rgb: RGB) => rgb.map(toLinear) as RGB;
-
-    const lin_c1 = lin(c1);
-    const lin_c2 = lin(c2);
-    const lin_t = lin(target);
-
-    const sub = (a: RGB, b: RGB) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]] as RGB;
-    const dot = (a: RGB, b: RGB) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
-    const add = (a: RGB, b: RGB) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]] as RGB;
-    const scale = (a: RGB, s: number) => [a[0]*s, a[1]*s, a[2]*s] as RGB;
-
-    // compute t minimizing ||(1−t)P + tB − T||²
-    const c1_c2 = sub(lin_c2, lin_c1);
-    const t_c1 = sub(lin_t, lin_c1);
-    let t = dot(t_c1, c1_c2) / dot(c1_c2, c1_c2);
-    t = Math.max(0, Math.min(1, t)); // clamp to [0,1]
-
-    // reconstruct blended color for reference
-    const mix = add(scale(lin_c1, 1 - t), scale(lin_c2, t));
-    const toSrgb = (c: number) =>
-      c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
-    const srgb = mix.map(c => Math.round(toSrgb(c) * 255)) as RGB;
-
-    return {
-      ratioC1: t,
-      ratioC2: 1 - t,
-      mixedRGB: srgb
-    };
+  function sendMessage(type: string, payload?: any) {
+    iframeRef.current?.contentWindow?.postMessage({ type, payload }, "*");
   }
 
-  // for 2 colors and canvas
-  function mix3Colors(
-    c1: RGB, c2: RGB, c3: RGB,
-    target: RGB
-  ) {
-    // normalize 0–1
-    const toLinear = (c: RGB) => c.map(v => v / 255) as RGB;
-    const [a, b, c] = [toLinear(c1), toLinear(c2), toLinear(c3)];
-    const t = toLinear(target);
-
-    // form matrix M (3x3)
-    const M = [
-      [a[0], b[0], c[0]],
-      [a[1], b[1], c[1]],
-      [a[2], b[2], c[2]],
-    ];
-
-    // solve M * w = t  → w = M⁻¹ * t
-    const det = (
-      M[0][0] * (M[1][1]*M[2][2] - M[2][1]*M[1][2]) -
-      M[0][1] * (M[1][0]*M[2][2] - M[2][0]*M[1][2]) +
-      M[0][2] * (M[1][0]*M[2][1] - M[2][0]*M[1][1])
-    );
-
-    if (Math.abs(det) < 1e-6) {
-      console.warn("Matrix is near singular; cannot invert accurately");
-      return { ratio1: 0, ratio2: 0, ratio3: 1 };
-    }
-
-    const inv = [
-      [
-        (M[1][1]*M[2][2] - M[2][1]*M[1][2]) / det,
-        (M[0][2]*M[2][1] - M[0][1]*M[2][2]) / det,
-        (M[0][1]*M[1][2] - M[0][2]*M[1][1]) / det,
-      ],
-      [
-        (M[1][2]*M[2][0] - M[1][0]*M[2][2]) / det,
-        (M[0][0]*M[2][2] - M[0][2]*M[2][0]) / det,
-        (M[1][0]*M[0][2] - M[0][0]*M[1][2]) / det,
-      ],
-      [
-        (M[1][0]*M[2][1] - M[2][0]*M[1][1]) / det,
-        (M[2][0]*M[0][1] - M[0][0]*M[2][1]) / det,
-        (M[0][0]*M[1][1] - M[1][0]*M[0][1]) / det,
-      ],
-    ];
-
-    // multiply inv * t
-    const w = [
-      inv[0][0]*t[0] + inv[0][1]*t[1] + inv[0][2]*t[2],
-      inv[1][0]*t[0] + inv[1][1]*t[1] + inv[1][2]*t[2],
-      inv[2][0]*t[0] + inv[2][1]*t[1] + inv[2][2]*t[2],
-    ];
-
-    // clamp and normalize
-    let clamped = w.map(v => Math.max(0, v));
-    const sum = clamped.reduce((a, b) => a + b, 0);
-    if (sum > 0) clamped = clamped.map(v => v / sum);
-
-    return {
-      ratio1: clamped[0],
-      ratio2: clamped[1],
-      ratio3: clamped[2],
-    };
+  function exportBIN() {
+    sendMessage("exportBIN");
   }
 
-  type RGB = [number, number, number];
+  function handleBINUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  function mix4Colors(
-    c1: RGB, c2: RGB, c3: RGB, c4: RGB,
-    target: RGB
-  ) {
-    const toLinear = (c: RGB) => c.map(v => v / 255) as RGB;
-
-    const a = toLinear(c1);
-    const b = toLinear(c2);
-    const c = toLinear(c3);
-    const d = toLinear(c4);
-    const t = toLinear(target);
-
-    // 4×4 system with normalization row
-    const M = [
-      [a[0], b[0], c[0], d[0]],
-      [a[1], b[1], c[1], d[1]],
-      [a[2], b[2], c[2], d[2]],
-      [1,    1,    1,    1   ],
-    ];
-
-    const T = [t[0], t[1], t[2], 1];
-
-    // ---- 4x4 determinant ----
-    const det4 = (m: number[][]) => {
-      const [
-        a, b, c, d,
-      ] = m;
-
-      const det3 = (m3: number[][]) =>
-        m3[0][0] * (m3[1][1] * m3[2][2] - m3[1][2] * m3[2][1]) -
-        m3[0][1] * (m3[1][0] * m3[2][2] - m3[1][2] * m3[2][0]) +
-        m3[0][2] * (m3[1][0] * m3[2][1] - m3[1][1] * m3[2][0]);
-
-      return (
-        a[0] * det3([b.slice(1), c.slice(1), d.slice(1)]) -
-        a[1] * det3([[b[0], b[2], b[3]], [c[0], c[2], c[3]], [d[0], d[2], d[3]]]) +
-        a[2] * det3([[b[0], b[1], b[3]], [c[0], c[1], c[3]], [d[0], d[1], d[3]]]) -
-        a[3] * det3([[b[0], b[1], b[2]], [c[0], c[1], c[2]], [d[0], d[1], d[2]]])
-      );
+    const reader = new FileReader();
+    reader.onload = () => {
+      sendMessage("importBIN", reader.result);
     };
-
-    const det = det4(M);
-    if (Math.abs(det) < 1e-9) {
-      console.warn("Matrix near singular (colors too similar)");
-      return { r1: 0, r2: 0, r3: 0, r4: 1 };
-    }
-
-    // ---- Compute inverse (via adjugate / cofactors) ----
-    const cofactor = (m: number[][], row: number, col: number) => {
-      // remove row & col → 3×3 matrix
-      const sub = m
-        .filter((_, r) => r !== row)
-        .map(r => r.filter((_, c) => c !== col));
-
-      const det3 =
-        sub[0][0] * (sub[1][1] * sub[2][2] - sub[1][2] * sub[2][1]) -
-        sub[0][1] * (sub[1][0] * sub[2][2] - sub[1][2] * sub[2][0]) +
-        sub[0][2] * (sub[1][0] * sub[2][1] - sub[1][1] * sub[2][0]);
-
-      // sign alternates
-      return ((row + col) % 2 === 0 ? 1 : -1) * det3;
-    };
-
-    const inv = Array.from({ length: 4 }, (_, r) =>
-      Array.from({ length: 4 }, (_, c) => cofactor(M, c, r) / det)
-    );
-
-    // multiply inv * T
-    const w = [
-      inv[0][0]*T[0] + inv[0][1]*T[1] + inv[0][2]*T[2] + inv[0][3]*T[3],
-      inv[1][0]*T[0] + inv[1][1]*T[1] + inv[1][2]*T[2] + inv[1][3]*T[3],
-      inv[2][0]*T[0] + inv[2][1]*T[1] + inv[2][2]*T[2] + inv[2][3]*T[3],
-      inv[3][0]*T[0] + inv[3][1]*T[1] + inv[3][2]*T[2] + inv[3][3]*T[3],
-    ];
-
-    // clamp and renormalize (to avoid negative ratios)
-    let clamped = w.map(v => Math.max(0, v));
-    const s = clamped.reduce((a,b)=>a+b, 0);
-    if (s > 0) clamped = clamped.map(v => v / s);
-
-    return {
-      ratio1: clamped[0],
-      ratio2: clamped[1],
-      ratio3: clamped[2],
-      ratio4: clamped[3],
-    };
+    reader.readAsArrayBuffer(file);
   }
 
+  function savePNG() {
+    sendMessage("savePNG");
+  }
+
+  function importPNG(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+  
+    const reader = new FileReader();
+  
+    reader.onload = () => {
+      sendMessage("importPNG", reader.result); // send image data URL string
+    };
+  
+    reader.readAsDataURL(file);
+  }  
 
   useEffect(() => {
     setMounted(true)
@@ -251,7 +95,6 @@ function samplePixels() {
 
   const result = averageColumnColors(snapshot)
   sendAvg(result);
-  console.log('average color', result)
 }
 
 function averageColumnColors() {
@@ -285,10 +128,8 @@ function averageColumnColors() {
       bSum / count]
     );
   }
-
   return results;
 }
-
 
 function averageColor(pixels) {
   let r = 0, g = 0, b = 0;
@@ -301,50 +142,61 @@ function averageColor(pixels) {
   return [r / count, g / count, b / count];
 }
 
-function averageQuadrants(pixels, w, h) {
-  const midX = Math.floor(w / 2);
-  const midY = Math.floor(h / 2);
+colorPicked = [255, 255, 255];
 
-  // accumulators: tl, tr, bl, br
-  const sums = {
-    tl: [0, 0, 0, 0], // r,g,b,count
-    tr: [0, 0, 0, 0],
-    bl: [0, 0, 0, 0],
-    br: [0, 0, 0, 0],
-  };
-
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const idx = (x + y * w) * 4;
-      const r = pixels[idx];
-      const g = pixels[idx + 1];
-      const b = pixels[idx + 2];
-
-      let q;
-      if (x < midX && y < midY) q = "tl";
-      else if (x >= midX && y < midY) q = "tr";
-      else if (x < midX && y >= midY) q = "bl";
-      else q = "br";
-
-      sums[q][0] += r;
-      sums[q][1] += g;
-      sums[q][2] += b;
-      sums[q][3] += 1;
-    }
-  }
-
-  // compute averages
-  const avg = {
-    tl: sums.tl[3] ? [sums.tl[0] / sums.tl[3], sums.tl[1] / sums.tl[3], sums.tl[2] / sums.tl[3]] : [0,0,0],
-    tr: sums.tr[3] ? [sums.tr[0] / sums.tr[3], sums.tr[1] / sums.tr[3], sums.tr[2] / sums.tr[3]] : [0,0,0],
-    bl: sums.bl[3] ? [sums.bl[0] / sums.bl[3], sums.bl[1] / sums.bl[3], sums.bl[2] / sums.bl[3]] : [0,0,0],
-    br: sums.br[3] ? [sums.br[0] / sums.br[3], sums.br[1] / sums.br[3], sums.br[2] / sums.br[3]] : [0,0,0],
-  };
-
-  return avg;
+function exportBIN() {
+  loadPixels();
+  // ensure pixels are up-to-date
+  // create a copy of the pixel buffer (Uint8ClampedArray)
+  const out = new Uint8ClampedArray(pixels);
+  const blob = new Blob([out], { type: 'application/octet-stream' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'canvas.bin';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
-colorPicked = [237, 37, 93];
+function importBIN(arrayBuffer) {
+  // arrayBuffer should be an ArrayBuffer containing raw RGBA bytes
+  const arr = new Uint8ClampedArray(arrayBuffer);
+
+  // sanity check
+  if (arr.length !== width * height * 4) {
+    console.warn('importBIN: buffer size mismatch', arr.length, width * height * 4);
+    // proceed anyway or return
+  }
+
+  // 1) Put the bytes into the paint array so the simulation uses them
+  // paint expects a JS array of numbers length width*height*4
+  paint = Array.from(arr);
+
+  // 2) Make independent temp arrays from the imported paint
+  tempPaint1 = paint.slice();
+  tempPaint2 = paint.slice();
+
+  // 3) Also push the pixels[] buffer to match immediately (so it displays now)
+  loadPixels();
+  for (let i = 0; i < pixels.length && i < arr.length; i++) {
+    pixels[i] = arr[i];
+  }
+  updatePixels();
+}
+
+function importPNG(dataURL) {
+  console.log("inside importPNG");
+
+  loadImage(dataURL, (img) => {
+    image(img, 0, 0, width, height);
+    loadPixels(); // update p5 pixels buffer
+  });
+}
+
+
+function savePNG() {
+  saveCanvas('my_drawing', 'png');
+}
+
 
 let isPointerDown = false;
 let pointerX = 0;
@@ -382,7 +234,7 @@ function setup() {
       //const { tl, tr, bl, br } = event.data.payload;
       // console.log(tl, tr, bl, br)
       //console.log('event data payload', event.data.payload)
-      colorPicked = [event.data.payload.rgb[0], event.data.payload.rgb[1], event.data.payload.rgb[2]];
+      colorPicked = [event.data.payload[0], event.data.payload[1], event.data.payload[2]];
       //console.log("Updated colorPicked:", colorPicked);
     }
   });
@@ -408,12 +260,14 @@ function setup() {
   // state = createElement("state", "Default");
   // state.position(450, height + 5);
 
-  // fill the arrays with white color
+  paint = [];
   for (let x = 0; x < width; x++) {
     for (let y = 0; y < height; y++) {
       paint.push(backgrd, backgrd, backgrd, 0);
     }
   }
+
+  // CLONE the arrays — do not assign references
   tempPaint1 = paint; 
   tempPaint2 = paint;
 }
@@ -651,6 +505,15 @@ function keyTyped() {
     save("myCanvas.jpg");
   }
 }
+
+window.addEventListener('message', event => {
+  const { type, payload } = event.data;
+
+  if (type === 'savePNG') savePNG();
+  if (type === 'exportBIN') exportBIN();
+  if (type === "importPNG") importPNG(payload);
+  if (type === 'importBIN') importBIN(payload);
+});
 `
     const html = `
       <!DOCTYPE html>
@@ -694,10 +557,10 @@ function keyTyped() {
     // Send color updates to iframe
     if (colors.length > 0 && iframe.contentWindow) {
       // console.log('sketchPickerColor: ', activeColor)
-      setColor1([colors[activeColor].rgb[0], colors[activeColor].rgb[1], colors[activeColor].rgb[2]]) // need to write a function to convert between types
+      setColor([activeColor[0], activeColor[1], activeColor[2]]) // need to write a function to convert between types
       //console.log('color1: ', color1)
       iframe.contentWindow.postMessage(
-        { type: "updateColor", payload: colors[activeColor] },
+        { type: "updateColor", payload: activeColor },
         "*"
       );
     }
@@ -721,6 +584,19 @@ function keyTyped() {
 
   }, [activeColor]);
 
+
+  useEffect(() => {
+    if (!iframeRef.current?.contentWindow) return;
+  
+    iframeRef.current.contentWindow.postMessage(
+      {
+        type: "updateColor",
+        payload: activeColor,
+      },
+      "*"
+    );
+  }, [activeColor, colors]);
+
   return (
     <div style={{ display: "flex", flexDirection: "row", height: "100%", gap: '20px'}}>
       <div style={{ display: "flex", flexDirection: "column", gap: '10px', width: '100%'}}>
@@ -737,6 +613,27 @@ function keyTyped() {
             padding: "10px"
           }}
           // sandbox="allow-scripts allow-same-origin"
+        />
+        <div>
+          Previous versions
+        </div>
+        <button onClick={exportBIN} style={{}}>
+        Export BIN file
+        </button>
+        <button onClick={savePNG} style={{}}>
+        Export PNG file
+        </button>
+        <input
+          type="file"
+          accept=".bin"
+          ref={binInputRef}
+          onChange={handleBINUpload}
+        />
+        <input
+          type="file"
+          accept=".png"
+          ref={pngInputRef}
+          onChange={importPNG}
         />
       </div>
     </div>

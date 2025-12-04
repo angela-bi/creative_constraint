@@ -18,6 +18,7 @@ export function MappingList({ colors, activeColor, setActiveColor, soundLevel }:
     const MAX_MAPPINGS = 4; // when we reach this number, stop rendering + sign
     // const [activeMappingId, setActiveMappingId] = useState<number | null>(null); // this is the id number of the mapping who the user is selecting a color for
 
+    //console.log('sound level', Math.sqrt(soundLevel) * 100)
     // populating mappings
     useEffect(() => {
         const positions = [
@@ -35,7 +36,7 @@ export function MappingList({ colors, activeColor, setActiveColor, soundLevel }:
           pos: positions[index]
         }));
         setMappings(initialMappings);
-      }, [colors]);
+      }, []);
        
 
     // when color button is clicked
@@ -112,11 +113,11 @@ export function MappingList({ colors, activeColor, setActiveColor, soundLevel }:
                                 zIndex: 30,
                                 bottom: "60px",
                                 left: "60px",
-                                width: `${soundLevel * 200}%`,
+                                width: `${soundLevel}%`,
                                 height: "20px",
                                 background: "gray",
                                 borderRadius: 4,
-                                transition: "width 0.1s linear",
+                                // transition: "width 0.1s linear",
                                 pointerEvents: "none",
                             }}
                             />
