@@ -7,15 +7,17 @@ import { CirclePicker } from "react-color";
 // import { Ratio } from "./page";
 import { MappingList } from "./components/mappingList";
 import { RGB, Color } from "./page";
+import { Palette } from "./components/palette";
 
 type SketchProps = {
   // ratio: Ratio;
   setAvg: React.Dispatch<React.SetStateAction<RGB[]>>;
   colors: Color[];
-  activeColor: RGB;
+  activeColor: Color;
+  setActiveColor: React.Dispatch<React.SetStateAction<Color>>;
 };
 
-export default function Sketch({ setAvg, colors, activeColor }: SketchProps) {
+export default function Sketch({ setAvg, colors, activeColor, setActiveColor }: SketchProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [mounted, setMounted] = useState(false);
   const binInputRef = useRef<HTMLInputElement>(null);
@@ -122,7 +124,7 @@ function setup() {
       brushSize = payload;
     }
     if (type === "setBrushColor") {
-      brushColor = payload;
+      brushColor = payload.rgb;
     }
     if (type === "clearCanvas") {
       clearCanvas();
@@ -141,7 +143,7 @@ function setup() {
       importPNG(payload);
     }
     if (type === "updateColor") {
-      brushColor = payload;
+      brushColor = payload.rgb;
     }
     if (type === "updateAvg") {
       const cols = averageColumnColors();
@@ -323,77 +325,81 @@ function importPNG(dataURL) {
   }, [activeColor, colors]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "row", height: "100%", gap: '20px'}}>
-      <div style={{ display: "flex", flexDirection: "column", gap: '10px', width: '100%'}}>
-        {/* <select>
-          <option value="width">Brush width</option>
-        </select> */}
-        <iframe
-          ref={iframeRef}
-          style={{
-            width: "100%",
-            height: "500px",
-            border: "1px solid gray",
-            borderRadius: "12px",
-            padding: "10px"
-          }}
-          // sandbox="allow-scripts allow-same-origin"
-        />
-        <div>
-          <button
-            onClick={() => sendMessage("setMode", "brush")}
-            style={{ backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
-          >
-            Brush
-          </button>
+    <div style={{ display: "flex", flexDirection: "column", gap: '10px', width: '100%'}}>
+      {/* <select>
+        <option value="width">Brush width</option>
+      </select> */}
+      <iframe
+        ref={iframeRef}
+        style={{
+          width: "100%",
+          height: "500px",
+          border: "1px solid gray",
+          borderRadius: "12px",
+          padding: "10px"
+        }}
+        // sandbox="allow-scripts allow-same-origin"
+      />
+      <div style={{ display: "flex", flexDirection: "row", gap: '10px', width: '100%'}}>
+        <button
+          onClick={() => sendMessage("setMode", "brush")}
+          style={{ backgroundColor: 'lightgray', borderRadius: '10px', padding: '5px'}}
+        >
+          Brush
+        </button>
 
-          <button
-            onClick={() => sendMessage("setMode", "smudge")}
-            style={{ backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
-          >
-            Smudge
-          </button>
-        </div>
-        <div>
-          Previous versions
-          <div style={{ overflowX: "auto", display: "flex", gap: "10px", padding: "10px" }}>
-            {savedCanvases.map((src, i) => (
-              <img 
-                key={i} 
-                src={src} 
-                style={{ height: "100px", borderRadius: "8px", border: "1px solid #ccc" }} 
-                onClick={() => sendMessage("importPNG", src)}
-              />
-            ))}
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "row", gap: '10px'}}>
-          <button onClick={exportBIN} style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}>
-          Export BIN file
-          </button>
-          <button onClick={savePNG} style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}>
-          Export PNG file
-          </button>
-          <button
-            onClick={() => sendMessage("getPNG")}
-            style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
-          >
-            Save Canvas
-          </button>
-        </div>
-        {/* <input
-          type="file"
-          accept=".bin"
-          ref={binInputRef}
-          onChange={handleBINUpload}
-        />
-        <input
-          type="file"
-          accept=".png"
-          ref={pngInputRef}
-          onChange={importPNG}
-        /> */}
+        <button
+          onClick={() => sendMessage("setMode", "smudge")}
+          style={{ backgroundColor: 'lightgray', borderRadius: '10px', padding: '5px'}}
+        >
+          Smudge
+        </button>
+
+        <Palette
+          colors={colors}
+          activeColor={activeColor}
+          setActiveColor={setActiveColor}
+        ></Palette>
       </div>
+      <div>
+        Previous versions
+        <div style={{ overflowX: "auto", display: "flex", gap: "10px", padding: "10px" }}>
+          {savedCanvases.map((src, i) => (
+            <img 
+              key={i} 
+              src={src} 
+              style={{ height: "100px", borderRadius: "8px", border: "1px solid #ccc" }} 
+              onClick={() => sendMessage("importPNG", src)}
+            />
+          ))}
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "row", gap: '10px'}}>
+        <button onClick={exportBIN} style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}>
+        Export BIN file
+        </button>
+        <button onClick={savePNG} style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}>
+        Export PNG file
+        </button>
+        <button
+          onClick={() => sendMessage("getPNG")}
+          style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
+        >
+          Save Canvas
+        </button>
+      </div>
+      {/* <input
+        type="file"
+        accept=".bin"
+        ref={binInputRef}
+        onChange={handleBINUpload}
+      />
+      <input
+        type="file"
+        accept=".png"
+        ref={pngInputRef}
+        onChange={importPNG}
+      /> */}
     </div>
   );
 }

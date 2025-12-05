@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, forwardRef, useImperativeHandle, SetStateAction } from "react";
-import { RGB } from "../page";
+import { Color, RGB } from "../page";
 
 type DrawingProps = {
   avg: RGB[];
   // soundLevel: number;
-  setActiveColor: React.Dispatch<React.SetStateAction<RGB>>;
+  setActiveColor: React.Dispatch<React.SetStateAction<Color>>;
 };
 
 export type KlecksDrawingRef = {
@@ -59,18 +59,18 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ avg, setActi
   //   iframe.contentWindow.postMessage({ type: "updateSoundLevel", payload: { soundLevel } }, "*");
   // }, [soundLevel]);
 
-  useEffect(() => {
-    function handle(ev: MessageEvent) {
-      if (ev.data?.type === "activeColorChanged") {
-        const rgb = ev.data.rgb; // [r, g, b]
-        //console.log("Setting active color from iframe:", rgb);
-        setActiveColor(rgb);
-      }
-    }
+  // useEffect(() => {
+  //   function handle(ev: MessageEvent) {
+  //     if (ev.data?.type === "activeColorChanged") {
+  //       const rgb = ev.data.rgb; // [r, g, b]
+  //       //console.log("Setting active color from iframe:", rgb);
+  //       setActiveColor(rgb);
+  //     }
+  //   }
   
-    window.addEventListener("message", handle);
-    return () => window.removeEventListener("message", handle);
-  }, [setActiveColor]);
+  //   window.addEventListener("message", handle);
+  //   return () => window.removeEventListener("message", handle);
+  // }, [setActiveColor]);
 
   // Inject Klecks into iframe
   useEffect(() => {
@@ -149,6 +149,8 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ avg, setActi
                 };
             }
 
+            // continuous not discrete
+            // opacity changing too easily
             // helper sum function, should generalize to other colors
             function sumAvgs(avgs, param, alpha) {
               let total = 0

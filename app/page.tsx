@@ -29,7 +29,7 @@ export default function HomePage() {
   const blue: Color = {name: 'blue', rgb: [0, 0, 255]}
   const colors = [white, pink, lime, navy, blue, pink, gray, green];
 
-  const [activeColor, setActiveColor] = useState<RGB>([255, 255, 255])
+  const [activeColor, setActiveColor] = useState<Color>(white)
 
   // sound level
   // useEffect(() => {
@@ -87,6 +87,7 @@ export default function HomePage() {
               setAvg={setAvg}
               colors={colors}
               activeColor={activeColor}
+              setActiveColor={setActiveColor}
             />
           </div>
           <div style={{ flex: "2" }}>
