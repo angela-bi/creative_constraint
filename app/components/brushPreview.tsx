@@ -1,128 +1,275 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, forwardRef, useImperativeHandle, SetStateAction } from "react";
+import { Color, RGB } from "../page";
 
-export default function BrushPreview() {
+type brushPreviewProps = {
+  avg: RGB[];
+  // soundLevel: number;
+  setActiveColor: React.Dispatch<React.SetStateAction<Color>>;
+};
+
+export type KlecksDrawingRef = {
+  getBrushSize: () => Promise<number | null>;
+  setBrushSize: (size: number) => void;
+};
+
+const BrushPreview = forwardRef<KlecksDrawingRef, brushPreviewProps>(({ avg, setActiveColor }, ref) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    getBrushSize: () => {
+      return new Promise<number | null>(resolve => {
+        const iframe = iframeRef.current;
+        if (!iframe?.contentWindow) return resolve(null);
+
+        const requestId = `${Date.now()}-${Math.random()}`;
+
+        const handler = (ev: MessageEvent) => {
+          if (ev.data?.type === "brushSizeResponse" && ev.data.requestId === requestId) {
+            window.removeEventListener("message", handler);
+            resolve(ev.data.size ?? null);
+          }
+        };
+
+        window.addEventListener("message", handler);
+        iframe.contentWindow.postMessage({ type: "getBrushSize", requestId }, "*");
+
+        // Timeout fallback
+        setTimeout(() => {
+          window.removeEventListener("message", handler);
+          resolve(null);
+        }, 3000);
+      });
+    },
+    setBrushSize: (size: number) => {
+      iframeRef.current?.contentWindow?.postMessage({ type: "setBrushSize", size }, "*");
+    },
+  }));
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow) return;
+    //console.log('avg', avg)
+    iframe.contentWindow.postMessage({ type: "updateAvg", payload: { avg } }, "*");
+  }, [avg]);
+
+  // useEffect(() => {
+  //   const iframe = iframeRef.current;
+  //   if (!iframe?.contentWindow) return;
+  //   iframe.contentWindow.postMessage({ type: "updateSoundLevel", payload: { soundLevel } }, "*");
+  // }, [soundLevel]);
+
+  // useEffect(() => {
+  //   function handle(ev: MessageEvent) {
+  //     if (ev.data?.type === "activeColorChanged") {
+  //       const rgb = ev.data.rgb; // [r, g, b]
+  //       //console.log("Setting active color from iframe:", rgb);
+  //       setActiveColor(rgb);
+  //     }
+  //   }
+  
+  //   window.addEventListener("message", handle);
+  //   return () => window.removeEventListener("message", handle);
+  // }, [setActiveColor]);
+
+  // Inject Klecks into iframe
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
 
-    const code = `
-let brushSize = 15;
-let ratio = [1, 0];
-let rmsSimulated = 0.15;
-let spring = 0.4;
-let friction = 0.45;
-let v = 0.5;
-let r = 0;
-let vx = 0;
-let vy = 0;
-let splitNum = 100;
-let diff = 2;
-let f = false;
-let x, y, oldX, oldY, oldR;
-
-// Copy of your brush stroke function
-function drawStrokePath(px, py, targetX, targetY) {
-  vx += (targetX - px) * spring;
-  vy += (targetY - py) * spring;
-  vx *= friction;
-  vy *= friction;
-  
-  v += sqrt(vx * vx + vy * vy) - v;
-  v *= 0.55;
-
-  oldR = r;
-  r = brushSize - v;
-
-  for (let i = 0; i < splitNum; ++i) {
-    oldX = px;
-    oldY = py;
-    px += vx / splitNum;
-    py += vy / splitNum;
-    oldR += (r - oldR) / splitNum;
-    if (oldR < 1) oldR = 1;
-    strokeWeight(oldR + diff);
-    let c = color(0);
-    stroke(c);
-    line(px + random(0, 2), py + random(0, 2), oldX + random(0, 2), oldY + random(0, 2));
-    strokeWeight(oldR);
-    line(px + diff * random(0.1, 2), py + diff * random(0.1, 2), oldX + diff * random(0.1, 2), oldY + diff * random(0.1, 2));
-    line(px - diff * random(0.1, 2), py - diff * random(0.1, 2), oldX - diff * random(0.1, 2), oldY - diff * random(0.1, 2));
-  }
-
-  return [px, py];
-}
-
-// Main simulation
-function setup() {
-  createCanvas(1000, 400);
-  background(255);
-  textSize(16);
-  textAlign(CENTER);
-  text('Original Brush', width * 0.25, 30);
-  text('Sound-Influenced Brush', width * 0.75, 30);
-  stroke(0);
-  noFill();
-}
-
-let t = 0;
-let x1 = 100;
-let y1 = 200;
-let x2 = 600;
-let y2 = 200;
-
-function draw() {
-  // Clear each frame slightly to avoid overdraw clutter
-  fill(255, 255, 255, 20);
-  noStroke();
-  rect(0, 0, width, height);
-
-  // Compute path along a curve (simulate drawing)
-  let progress = (t % 300) / 300;
-  let targetX = 200 + progress * 300;
-  let targetY = 200 + sin(progress * TWO_PI) * 50;
-
-  // === Original Brush ===
-  push();
-  translate(0, 0);
-  brushSize = 15; // fixed for original
-  [x1, y1] = drawStrokePath(x1, y1, targetX, targetY);
-  pop();
-
-  // === Sound-Influenced Brush ===
-  push();
-  translate(500, 0);
-  // simulate varying sound (sinusoidal rms)
-  const rms = 0.1 + 0.1 * sin(t * 0.1);
-  const soundInfluence = 10 + rms * 400;
-  brushSize = ratio[0] * 15 + ratio[1] * soundInfluence;
-  [x2, y2] = drawStrokePath(x2, y2, targetX, targetY);
-  pop();
-
-  t++;
-}
-    `;
-
+    const origin = window.location.origin;
     const html = `
       <!DOCTYPE html>
       <html lang="en">
       <head>
-        <meta charset="UTF-8" />
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+        <meta charset="UTF-8">
+        <title>Klecks</title>
         <style>
-          html, body { margin: 0; padding: 0; overflow: hidden; }
-          canvas { display: block; margin: auto; }
+          /* Move tool sidebar to the right */
+          .kl-toolbar {
+            left: auto !important;
+            right: 0 !important;
+          }
+          .kl-app {
+            flex-direction: row-reverse !important;
+          }
+          /* adjust canvas margin so it doesn't overlap toolbar (tweak width as needed) */
+          .kl-canvas-wrapper {
+            margin-right: 260px !important;
+            margin-left: 0 !important;
+          }
         </style>
       </head>
-      <body>
+      <body style="margin:0; overflow:hidden;">
         <script>
-          try {
-            ${code}
-          } catch (err) {
-            document.body.innerHTML = '<pre style="color:red;">' + err + '</pre>';
-          }
-        </script>
+          (function() {
+            let KL = null;
+            let lastBrushSize = 50;
+            let brushReady = false;
+            const pendingMsgs = [];
+
+            // Source - https://stackoverflow.com/a
+            // Posted by Mic, modified by community. See post 'Timeline' for change history
+            // Retrieved 2025-12-02, License - CC BY-SA 4.0
+
+            function rgb2hsv (r, g, b) {
+                let rabs, gabs, babs, rr, gg, bb, h, s, v, diff, diffc, percentRoundFn;
+                rabs = r / 255;
+                gabs = g / 255;
+                babs = b / 255;
+                v = Math.max(rabs, gabs, babs),
+                diff = v - Math.min(rabs, gabs, babs);
+                diffc = c => (v - c) / 6 / diff + 1 / 2;
+                percentRoundFn = num => Math.round(num * 100) / 100;
+                if (diff == 0) {
+                    h = s = 0;
+                } else {
+                    s = diff / v;
+                    rr = diffc(rabs);
+                    gg = diffc(gabs);
+                    bb = diffc(babs);
+
+                    if (rabs === v) {
+                        h = bb - gg;
+                    } else if (gabs === v) {
+                        h = (1 / 3) + rr - bb;
+                    } else if (babs === v) {
+                        h = (2 / 3) + gg - rr;
+                    }
+                    if (h < 0) {
+                        h += 1;
+                    }else if (h > 1) {
+                        h -= 1;
+                    }
+                }
+                return {
+                    h: Math.round(h * 360),
+                    s: percentRoundFn(s * 100),
+                    v: percentRoundFn(v * 100)
+                };
+            }
+
+            // continuous not discrete
+            // opacity changing too easily
+            // helper sum function, should generalize to other colors
+            function sumAvgs(avgs, param, alpha) {
+              let total = 0
+              for (let i=0; i<10; i++) {
+                let color = avgs[i]
+                let hsv = rgb2hsv(color[0], color[1], color[2])
+                let value = hsv[param]
+                total += value*alpha
+              }
+              //console.log('sum avgs', total)
+              return total
+            }
+
+            // central message handler
+            function handleMessage(msg) {
+              const inst = KL?.instance;
+              if (!inst) return;
+
+              const tool = inst.brushTool;
+              const brush = tool?.brush;
+
+              switch (msg.type) {
+
+                case "setBrushSize":
+                  if (brush) {
+                    brush.size = msg.size;
+                    lastBrushSize = msg.size;
+                  }
+                  break;
+
+                case "getBrushSize":
+                  window.parent.postMessage({
+                    type: "brushSizeResponse",
+                    requestId: msg.requestId,
+                    size: brush ? brush.size : null
+                  }, "*");
+                  break;
+
+                case "updateAvg":
+                  window.avgs = msg.payload.avg;
+                  let brush_size = sumAvgs(avgs, 'h', 0.02)
+                  console.log('brush size', brush_size)
+                  KL.setBrushSize(brush_size)
+                  let opacity = sumAvgs(avgs, 's', 0.002)
+                  console.log('opacity', opacity)
+                  KL.setBrushOpacity(opacity) // opacity ranges from 0-1
+                  // window.parent.postMessage({ type: "setOpacity", opacity: 0 }, "*");
+                  break;
+              }
+            }
+
+            // message listener: queue until ready
+            window.addEventListener('message', (event) => {
+              const msg = event.data;
+              if (!msg || typeof msg !== 'object') return;
+
+              // if brush not installed yet, queue messages that affect brush
+              const requiresReady = ['setBrushSize', 'setBrushOpacity', 'getBrushSize', 'updateAvg'];
+              if (!brushReady && requiresReady.includes(msg.type)) {
+                pendingMsgs.push(msg);
+                return;
+              }
+              handleMessage(msg);
+            });
+
+            // load Klecks script and initialize KL
+            const script = document.createElement('script');
+            script.src = '${origin}/klecks/embed.js';
+            script.onload = () => {
+              KL = new Klecks({
+                onSubmit: (success) => success(),
+                onGetPenBrushSize: () => lastBrushSize
+              });
+
+              KL.openProject({
+                width: 1000,
+                height: 1000,
+                layers: [
+                  {
+                    name: "Background",
+                    isVisible: true,
+                    opacity: 1,
+                    mixModeStr: "source-over",
+                    image: { fill: "#ffffff" }
+                  }
+                ]
+              });
+
+              console.log('KL', KL)
+
+              const waitReady = setInterval(() => {
+                if (KL) {
+                  brushReady = true;
+                  clearInterval(waitReady);
+
+                  setInterval(() => {
+                    if (!KL) return;
+                    const c = KL.getColor();
+                    if (!c) return;
+
+                    window.parent.postMessage(
+                      { type: "activeColorChanged", rgb: [c.r, c.g, c.b] },
+                      "*"
+                    );
+                  }, 200);
+
+                  // flush queued messages
+                  //console.log('pendingMsgs', pendingMsgs)
+                  pendingMsgs.forEach(msg => handleMessage(msg));
+                  pendingMsgs.length = 0;
+
+                  window.parent.postMessage({ type: "klecksReady" }, "*");
+                }
+              }, 5);
+            };
+            document.head.appendChild(script);
+
+          })();
+          </script>
       </body>
       </html>
     `;
@@ -131,6 +278,21 @@ function draw() {
     const url = URL.createObjectURL(blob);
     iframe.src = url;
 
+    const style = document.createElement("style");
+    style.textContent = `
+        /* Move tool sidebar to the right */
+        .kl-toolbar {
+            left: auto !important;
+            right: 0 !important;
+        }
+
+        /* Move the inner content so it doesnt overlap */
+        .kl-app {
+            flex-direction: row-reverse !important;
+        }
+    `;
+    document.head.appendChild(style);
+
     return () => URL.revokeObjectURL(url);
   }, []);
 
@@ -138,13 +300,9 @@ function draw() {
     <iframe
       ref={iframeRef}
       sandbox="allow-scripts allow-same-origin"
-      style={{
-        width: "100%",
-        height: "400px",
-        border: "1px solid #ccc",
-        borderRadius: "12px",
-        marginTop: "1rem"
-      }}
+      style={{ width: "100%", height: "100%", border: "1px solid gray", borderRadius: "12px" }}
     />
   );
-}
+});
+
+export default BrushPreview;

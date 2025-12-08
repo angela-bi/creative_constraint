@@ -6,7 +6,6 @@ import Sketch from "./sketch";
 import DrawingSoftware from "./components/drawingSoftware";
 import BrushPreview from "./components/brushPreview";
 import KlecksDrawing from "./components/klecksDrawing";
-import { MappingList } from "./components/mappingList";
 
 // export type Ratio = [number, number, number]
 
@@ -29,7 +28,7 @@ export default function HomePage() {
   const blue: Color = {name: 'blue', rgb: [0, 0, 255]}
   const colors = [white, pink, lime, navy, blue, pink, gray, green];
 
-  const [activeColor, setActiveColor] = useState<Color>(white)
+  const [activeColor, setActiveColor] = useState<Color>(pink)
 
   // sound level
   // useEffect(() => {

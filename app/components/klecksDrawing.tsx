@@ -49,7 +49,7 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ avg, setActi
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe?.contentWindow) return;
-    console.log('avg', avg)
+    //console.log('avg', avg)
     iframe.contentWindow.postMessage({ type: "updateAvg", payload: { avg } }, "*");
   }, [avg]);
 
@@ -160,7 +160,7 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ avg, setActi
                 let value = hsv[param]
                 total += value*alpha
               }
-              console.log('sum avgs', total)
+              //console.log('sum avgs', total)
               return total
             }
 
@@ -195,6 +195,7 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ avg, setActi
                   console.log('brush size', brush_size)
                   KL.setBrushSize(brush_size)
                   let opacity = sumAvgs(avgs, 's', 0.002)
+                  console.log('opacity', opacity)
                   KL.setBrushOpacity(opacity) // opacity ranges from 0-1
                   // window.parent.postMessage({ type: "setOpacity", opacity: 0 }, "*");
                   break;
