@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, forwardRef, useImperativeHandle, SetStateAction } from "react";
 import { Color, RGB } from "../page";
 
-type brushPreviewProps = {
-  avg: RGB[];
+type DrawingProps = {
+  pixels: RGB[];
   // soundLevel: number;
-  setActiveColor: React.Dispatch<React.SetStateAction<Color>>;
+  //setActiveColor: React.Dispatch<React.SetStateAction<Color>>;
 };
 
 export type KlecksDrawingRef = {
@@ -12,7 +12,7 @@ export type KlecksDrawingRef = {
   setBrushSize: (size: number) => void;
 };
 
-const BrushPreview = forwardRef<KlecksDrawingRef, brushPreviewProps>(({ avg, setActiveColor }, ref) => {
+const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Expose methods to parent via ref
@@ -50,27 +50,9 @@ const BrushPreview = forwardRef<KlecksDrawingRef, brushPreviewProps>(({ avg, set
     const iframe = iframeRef.current;
     if (!iframe?.contentWindow) return;
     //console.log('avg', avg)
-    iframe.contentWindow.postMessage({ type: "updateAvg", payload: { avg } }, "*");
-  }, [avg]);
+    iframe.contentWindow.postMessage({ type: "updatePixels", payload: { pixels } }, "*");
+  }, [pixels]);
 
-  // useEffect(() => {
-  //   const iframe = iframeRef.current;
-  //   if (!iframe?.contentWindow) return;
-  //   iframe.contentWindow.postMessage({ type: "updateSoundLevel", payload: { soundLevel } }, "*");
-  // }, [soundLevel]);
-
-  // useEffect(() => {
-  //   function handle(ev: MessageEvent) {
-  //     if (ev.data?.type === "activeColorChanged") {
-  //       const rgb = ev.data.rgb; // [r, g, b]
-  //       //console.log("Setting active color from iframe:", rgb);
-  //       setActiveColor(rgb);
-  //     }
-  //   }
-  
-  //   window.addEventListener("message", handle);
-  //   return () => window.removeEventListener("message", handle);
-  // }, [setActiveColor]);
 
   // Inject Klecks into iframe
   useEffect(() => {
@@ -80,24 +62,11 @@ const BrushPreview = forwardRef<KlecksDrawingRef, brushPreviewProps>(({ avg, set
     const origin = window.location.origin;
     const html = `
       <!DOCTYPE html>
-      <html lang="en">
+      <html lang="en" class="klecks-drawing">
       <head>
         <meta charset="UTF-8">
         <title>Klecks</title>
         <style>
-          /* Move tool sidebar to the right */
-          .kl-toolbar {
-            left: auto !important;
-            right: 0 !important;
-          }
-          .kl-app {
-            flex-direction: row-reverse !important;
-          }
-          /* adjust canvas margin so it doesn't overlap toolbar (tweak width as needed) */
-          .kl-canvas-wrapper {
-            margin-right: 260px !important;
-            margin-left: 0 !important;
-          }
         </style>
       </head>
       <body style="margin:0; overflow:hidden;">
@@ -149,28 +118,34 @@ const BrushPreview = forwardRef<KlecksDrawingRef, brushPreviewProps>(({ avg, set
                 };
             }
 
-            // continuous not discrete
-            // opacity changing too easily
-            // helper sum function, should generalize to other colors
-            function sumAvgs(avgs, param, alpha) {
-              let total = 0
-              for (let i=0; i<10; i++) {
-                let color = avgs[i]
-                let hsv = rgb2hsv(color[0], color[1], color[2])
-                let value = hsv[param]
-                total += value*alpha
+            function mapRange(value, inMin, inMax, outMin, outMax) {
+              const v = Math.min(Math.max(value, inMin), inMax);
+              return outMin + ((v - inMin) * (outMax - outMin)) / (inMax - inMin);
+            }
+
+            function pixelToCanvas(pixels, param, alpha) {
+              let total = 0;
+
+              for (let i = 0; i < pixels.length; i++) {
+                //let dist = (i - pixels.length / 2) * alpha;
+                //console.log('dist', dist) dist is the problem here!!!
+                let {h, s, v} = rgb2hsv(...pixels[i]);
+                let value = param === 'h' ? h : param === 's' ? s : v;
+                total += value
               }
-              //console.log('sum avgs', total)
-              return total
+
+              return total / pixels.length;
             }
 
             // central message handler
             function handleMessage(msg) {
               const inst = KL?.instance;
-              if (!inst) return;
+              const ui = inst.klApp.mobileUi;
+              ui.toolspaceIsOpen = false;
+              // ui.update();
 
-              const tool = inst.brushTool;
-              const brush = tool?.brush;
+              //console.log('KL', KL)
+              //KL.draw([{x:50,y:50},{x:200,y:200}]);
 
               switch (msg.type) {
 
@@ -189,15 +164,25 @@ const BrushPreview = forwardRef<KlecksDrawingRef, brushPreviewProps>(({ avg, set
                   }, "*");
                   break;
 
-                case "updateAvg":
-                  window.avgs = msg.payload.avg;
-                  let brush_size = sumAvgs(avgs, 'h', 0.02)
-                  console.log('brush size', brush_size)
-                  KL.setBrushSize(brush_size)
-                  let opacity = sumAvgs(avgs, 's', 0.002)
-                  console.log('opacity', opacity)
-                  KL.setBrushOpacity(opacity) // opacity ranges from 0-1
-                  // window.parent.postMessage({ type: "setOpacity", opacity: 0 }, "*");
+                case "updatePixels":
+                  window.pixels = msg.payload.pixels;
+                  let rawSize = pixelToCanvas(pixels, 'h', 0.02);
+                  let brush_size = mapRange(rawSize, -200, 200, 1, 200);
+                  console.log('raw and brush size', rawSize, brush_size)
+                  KL.setBrushSize(rawSize)
+
+                  let rawOpacity = pixelToCanvas(pixels, 's', 0.0006);
+                  let opacity = mapRange(rawOpacity, -50, 50, 0, 1);
+                  console.log('raw and opacity', rawOpacity, opacity)
+                  KL.setBrushOpacity(rawOpacity) // opacity ranges from 0-1
+
+                  let rawScatter = pixelToCanvas(pixels, 'v', 0.0002);
+                  let scatter = mapRange(rawScatter, -100, 100, 0, 100);
+                  KL.setBrushScatter(100-rawScatter);
+                  console.log('rawScatter and scatter', rawScatter, scatter)
+
+                  KL.draw([{ x: 100, y: 100 }, { x: 500, y: 500 }]);
+
                   break;
               }
             }
@@ -222,7 +207,21 @@ const BrushPreview = forwardRef<KlecksDrawingRef, brushPreviewProps>(({ avg, set
             script.onload = () => {
               KL = new Klecks({
                 onSubmit: (success) => success(),
-                onGetPenBrushSize: () => lastBrushSize
+                onGetPenBrushSize: () => lastBrushSize,
+                onDraw: (path) => {
+                  console.log("KL.draw called", path);
+
+                  const inst = KL.instance;
+                  const brush = inst.klApp.brushStroke;
+
+                  brush.beginStroke(path[0].x, path[0].y);
+
+                  for (let i = 1; i < path.length; i++) {
+                    brush.continueStroke(path[i].x, path[i].y);
+                  }
+
+                  brush.endStroke();
+                }
               });
 
               KL.openProject({
@@ -240,31 +239,6 @@ const BrushPreview = forwardRef<KlecksDrawingRef, brushPreviewProps>(({ avg, set
               });
 
               console.log('KL', KL)
-
-              const waitReady = setInterval(() => {
-                if (KL) {
-                  brushReady = true;
-                  clearInterval(waitReady);
-
-                  setInterval(() => {
-                    if (!KL) return;
-                    const c = KL.getColor();
-                    if (!c) return;
-
-                    window.parent.postMessage(
-                      { type: "activeColorChanged", rgb: [c.r, c.g, c.b] },
-                      "*"
-                    );
-                  }, 200);
-
-                  // flush queued messages
-                  //console.log('pendingMsgs', pendingMsgs)
-                  pendingMsgs.forEach(msg => handleMessage(msg));
-                  pendingMsgs.length = 0;
-
-                  window.parent.postMessage({ type: "klecksReady" }, "*");
-                }
-              }, 5);
             };
             document.head.appendChild(script);
 

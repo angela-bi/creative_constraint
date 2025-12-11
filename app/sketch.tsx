@@ -10,13 +10,13 @@ import { Palette } from "./components/palette";
 
 type SketchProps = {
   // ratio: Ratio;
-  setAvg: React.Dispatch<React.SetStateAction<RGB[]>>;
+  setPixels: React.Dispatch<React.SetStateAction<RGB[]>>;
   colors: Color[];
   activeColor: Color;
   setActiveColor: React.Dispatch<React.SetStateAction<Color>>;
 };
 
-export default function Sketch({ setAvg, colors, activeColor, setActiveColor }: SketchProps) {
+export default function Sketch({ setPixels, colors, activeColor, setActiveColor }: SketchProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [mounted, setMounted] = useState(false);
   const binInputRef = useRef<HTMLInputElement>(null);
@@ -76,8 +76,8 @@ function samplePixels() {
   const w = width;
   const h = height;
 
-  const result = averageColumnColors(snapshot)
-  sendAvg(result);
+  const result = getPixels(snapshot)
+  sendPixels(result);
 }
 
 function averageColumnColors() {
@@ -110,6 +110,31 @@ function averageColumnColors() {
       Math.round(gSum / count),
       Math.round(bSum / count)
     ]);
+  }
+
+  return results;
+}
+
+function getPixels() {
+
+  let img = get();     // snapshot of the whole canvas
+  img.loadPixels();
+
+  let results = [];
+
+  for (let x = 0; x < width; x++) {
+    for (let y = 0; y < height; y++) {
+      let idx = 4 * (y * width + x);
+      let r = img.pixels[idx];
+      let g = img.pixels[idx + 1];
+      let b = img.pixels[idx + 2];
+
+      results.push([
+        r,
+        g,
+        b
+      ]);
+    }
   }
 
   return results;
@@ -162,7 +187,7 @@ let tempPaint1 = [];
 let tempPaint2 = [];
 
 let lastSampleTime = 0;
-const sampleInterval = 600; // how many times p5 sends the avg data
+const sampleInterval = 2000; // bigger = less often, smaller = more often
 
 function setup() {
   pixelDensity(1);
@@ -206,11 +231,11 @@ function setup() {
     if (type === "updateColor") {
       colorPicked = [payload.rgb[0], payload.rgb[1], payload.rgb[2]];
     }
-    if (type === "updateAvg") {
-      const cols = averageColumnColors();
-      console.log('cols', cols)
-      // window.parent.postMessage({ type: "updateAvg", payload: cols }, "*");
-    }
+    // if (type === "updateAvg") {
+    //   // const cols = averageColumnColors();
+    //   // console.log('cols', cols)
+    //   // window.parent.postMessage({ type: "updateAvg", payload: cols }, "*");
+    // }
     if (type === "getPNG") {
       const pngData = document.querySelector("canvas").toDataURL("image/png");
       window.parent.postMessage({ type: "canvasPNG", payload: pngData }, "*");
@@ -478,9 +503,9 @@ function importPNG(dataURL) {
     updatePixels();
 
     // After watercolor is rendered, extract avg column colors
-    const cols = averageColumnColors();
+    const newPixels = getPixels();
     window.parent.postMessage(
-      { type: "updateAvg", payload: cols },
+      { type: "updatePixels", payload: newPixels },
       "*"
     );
   });
@@ -501,8 +526,8 @@ function importPNG(dataURL) {
       <body>
         <script>
           // Allow p5 code to send structured data to parent
-          window.sendAvg = (Avg) => {
-            window.parent.postMessage({ type: "updateAvg", payload: Avg }, "*");
+          window.sendPixels = (pixels) => {
+            window.parent.postMessage({ type: "updatePixels", payload: pixels }, "*");
           };
 
           try {
@@ -535,10 +560,10 @@ function importPNG(dataURL) {
     }
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === "updateAvg") {
-        const avg = event.data.payload;
+      if (event.data?.type === "updatePixels") {
+        const pixels = event.data.payload;
         //('event.data.payload', event.data.payload)
-        setAvg(avg)
+        setPixels(pixels)
       }
       if (event.data?.type === "canvasPNG") {
         setSavedCanvases(prev => [event.data.payload, ...prev]);
@@ -579,19 +604,6 @@ function importPNG(dataURL) {
         // sandbox="allow-scripts allow-same-origin"
       />
       <div style={{ display: "flex", flexDirection: "row", gap: '10px', width: '100%'}}>
-        <button
-          onClick={() => sendMessage("setMode", "brush")}
-          style={{ backgroundColor: 'lightgray', borderRadius: '10px', padding: '5px'}}
-        >
-          Brush
-        </button>
-
-        <button
-          onClick={() => sendMessage("setMode", "smudge")}
-          style={{ backgroundColor: 'lightgray', borderRadius: '10px', padding: '5px'}}
-        >
-          Smudge
-        </button>
 
         <Palette
           colors={colors}
@@ -613,12 +625,12 @@ function importPNG(dataURL) {
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "row", gap: '10px'}}>
-        <button onClick={exportBIN} style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}>
+        {/* <button onClick={exportBIN} style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}>
         Export BIN file
         </button>
         <button onClick={savePNG} style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}>
         Export PNG file
-        </button>
+        </button> */}
         <button
           onClick={() => sendMessage("getPNG")}
           style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}

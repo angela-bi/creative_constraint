@@ -14,13 +14,12 @@ type PaletteProps = {
 
 export function Palette({ colors, activeColor, setActiveColor }: PaletteProps) {
     const [mappings, setMappings] = useState<Mapping[]>([]);
-    const MAX_MAPPINGS = 4;
+    const MAX_MAPPINGS = 5;
     // const [activeMappingId, setActiveMappingId] = useState<number | null>(null); // this is the id number of the mapping who the user is selecting a color for
 
     // populating mappings
     useEffect(() => {
-        if (!colors || colors.length === 0) return;
-        const initialMappings = colors.slice(1, MAX_MAPPINGS ).map((color, index) => ({ // excluding first color, white
+        const initialMappings = colors.slice(0, MAX_MAPPINGS ).map((color, index) => ({ // excluding first color, white
           id: index,
           color,
           input: "nothing" as Input,
@@ -72,6 +71,7 @@ export function Palette({ colors, activeColor, setActiveColor }: PaletteProps) {
                             width: "50px",
                             height: "50px",
                             borderRadius: '10px',
+                            border: "2px solid rgb(0,0,0,0.5)",
                             // backgroundSize: "contain",
                             // backgroundRepeat: "no-repeat",
                             // backgroundPosition: "center",

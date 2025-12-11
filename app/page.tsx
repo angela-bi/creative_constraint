@@ -15,83 +15,44 @@ export type Color = {name: string, rgb: RGB}
 export default function HomePage() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [avg, setAvg] = useState<RGB[]>([])
+  const [pixels, setPixels] = useState<RGB[]>([])
   const [soundLevel, setSoundLevel] = useState<number>(0);
 
   const white: Color = {name: 'white', rgb: [255, 255, 255]};
+  const black: Color = {name: 'black', rgb: [0, 0, 0]};
   const pink: Color = {name: 'pink', rgb: [237, 37, 93]};
   const navy: Color = {name: 'blue', rgb: [104, 115, 159]};
   const lime: Color = {name: 'green', rgb: [175, 210, 121]};
   const gray: Color = {name: 'gray', rgb: [210, 210, 210]};
-  // const pink: Color = {name: 'pink', rgb: [255, 0, 0]};
+  const red: Color = {name: 'pink', rgb: [255, 0, 0]};
   const green: Color = {name: 'green', rgb: [0, 255, 0]};
   const blue: Color = {name: 'blue', rgb: [0, 0, 255]}
-  const colors = [white, pink, lime, navy, blue, pink, gray, green];
+  const orange: Color = {name: 'orange', rgb: [255, 164, 0]}
+  const colors = [white, black, red, orange, blue, navy, lime, gray, green];
 
   const [activeColor, setActiveColor] = useState<Color>(pink)
-
-  // sound level
-  // useEffect(() => {
-  //   let audioCtx: AudioContext;
-  //   let analyser: AnalyserNode;
-  //   let source: MediaStreamAudioSourceNode;
-  //   let rafId: number;
-  
-  //   const soundLevelRef = { current: 0 };
-  
-  //   navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-  //     audioCtx = new AudioContext();
-  //     analyser = audioCtx.createAnalyser();
-  //     source = audioCtx.createMediaStreamSource(stream);
-  //     source.connect(analyser);
-  
-  //     const buffer = new Uint8Array(analyser.fftSize);
-  
-  //     const tick = () => {
-  //       if (audioCtx.state === "suspended") {
-  //         audioCtx.resume();
-  //       }
-  
-  //       analyser.getByteTimeDomainData(buffer);
-  
-  //       let sum = 0;
-  //       for (let i = 0; i < buffer.length; i++) {
-  //         const v = (buffer[i] - 128) / 128;
-  //         sum += v * v;
-  //       }
-  //       const rms = Math.sqrt(sum / buffer.length);
-  
-  //       soundLevelRef.current = rms ;
-  
-  //       setSoundLevel(Math.sqrt(soundLevelRef.current)*100);
-  
-  //       rafId = requestAnimationFrame(tick);
-  //     };
-  
-  //     tick();
-  //   });
-  
-  //   return () => {
-  //     cancelAnimationFrame(rafId);
-  //     audioCtx?.close();
-  //     source?.disconnect();
-  //   };
-  // }, []);  
+ 
   
   return (
     <main className="p-6">
         <div style={{ display: "flex", flexDirection: "row", height: "100vh", width: "100%", gap: '20px'}}>
           <div style={{ flex: "1" }}>
             <Sketch
-              setAvg={setAvg}
+              setPixels={setPixels}
               colors={colors}
               activeColor={activeColor}
               setActiveColor={setActiveColor}
             />
           </div>
+          <div style={{ flex: "1"  }}>
+            <BrushPreview
+              pixels={pixels}
+              // setActiveColor={setActiveColor}
+            ></BrushPreview>
+          </div>
           <div style={{ flex: "2" }}>
             <KlecksDrawing
-              avg={avg}
+              pixels={pixels}
               // soundLevel={soundLevel}
               setActiveColor={setActiveColor}
             />
@@ -100,7 +61,6 @@ export default function HomePage() {
               setRatio={setRatio}
               colors={colors}
             /> */}
-            {/* <BrushPreview></BrushPreview> */}
           </div>
           {/* <MappingList 
             colors={colors}
