@@ -3,7 +3,6 @@
 import { useEffect, useCallback, useState, useRef } from "react";
 
 import Sketch from "./sketch";
-import DrawingSoftware from "./components/drawingSoftware";
 import BrushPreview from "./components/brushPreview";
 import KlecksDrawing from "./components/klecksDrawing";
 
