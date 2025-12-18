@@ -178,7 +178,7 @@ dryTime = defaultTime;
 let prevMouseX, prevMouseY;
 let sliderDrops, buttonDry, buttonWet, buttonDefault;
 let colorPicker;
-let colorPicked = [237, 37, 93];
+let colorPicked = [266, 0, 168];
 let paint = [];
 let tempPaint1 = [];
 let tempPaint2 = [];
@@ -633,6 +633,12 @@ function importPNG(dataURL) {
           style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
         >
           Save Canvas
+        </button>
+        <button
+          onClick={() => sendMessage("clearCanvas")}
+          style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
+        >
+          Clear Canvas
         </button>
       </div>
       {/* <input

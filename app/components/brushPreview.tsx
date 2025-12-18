@@ -83,6 +83,8 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref
 
             // central message handler
             function handleMessage(msg) {
+              KL.hideToolSpace();
+
               const inst = KL?.instance;
               const ui = inst.klApp.mobileUi;
               ui.toolspaceIsOpen = false;
@@ -130,14 +132,13 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref
                   let yCurrent = yStart
                   const yEnd = 1000;
 
-                  for (let i=0; i < 10; i++) {
-                    yCurrent = yCurrent + 100
+                  for (let i=0; i < 11; i++) {
                     path.push({x: xStart, y: yCurrent})
+                    yCurrent = yCurrent + 100
                   }
 
+                  KL.clearLayer();
                   KL.draw(path);
-
-                  //KL.clearLayer();
 
                 break;
               }
@@ -181,7 +182,6 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref
                 ]
               });
 
-              console.log('KL', KL)
             };
             document.head.appendChild(script);
 

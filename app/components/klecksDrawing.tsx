@@ -150,7 +150,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref
               });
 
               KL.openProject({
-                width: 400,
+                width: 1000,
                 height: 1000,
                 layers: [
                   {

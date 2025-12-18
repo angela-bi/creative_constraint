@@ -20,22 +20,22 @@ export default function HomePage() {
 
   const white: Color = {name: 'white', rgb: [255, 255, 255]};
   const black: Color = {name: 'black', rgb: [0, 0, 0]};
-  const pink: Color = {name: 'pink', rgb: [237, 37, 93]};
+  const pink: Color = {name: 'pink', rgb: [266, 0, 168]};
   const navy: Color = {name: 'blue', rgb: [104, 115, 159]};
-  const lime: Color = {name: 'green', rgb: [0, 255, 0]};
   const gray: Color = {name: 'gray', rgb: [210, 210, 210]};
   const red: Color = {name: 'pink', rgb: [255, 0, 0]};
   const green: Color = {name: 'green', rgb: [0, 255, 0]};
   const blue: Color = {name: 'blue', rgb: [0, 0, 255]}
-  const orange: Color = {name: 'orange', rgb: [255, 164, 0]}
-  const colors = [white, black, pink, orange, blue, lime, gray, green];
+  const orange: Color = {name: 'orange', rgb: [255, 92, 0]}
+  const yellow: Color = {name: 'yellow', rgb: [255, 255, 0]}
+  const colors = [white, black, orange, yellow, green, blue, pink];
 
   const [activeColor, setActiveColor] = useState<Color>(pink)
  
   
   return (
     <main className="p-6">
-        <div style={{ display: "flex", flexDirection: "row", height: "100vh", width: "100%", gap: '20px'}}>
+        <div style={{ display: "flex", flexDirection: "row", height: "95vh", width: "100%", gap: '20px'}}>
           <div style={{ flex: "1" }}>
             <Sketch
               setPixels={setPixels}
@@ -44,7 +44,7 @@ export default function HomePage() {
               setActiveColor={setActiveColor}
             />
           </div>
-          <div style={{ flex: "1"  }}>
+          <div style={{ flex: "0.5"  }}>
             <BrushPreview
               pixels={pixels}
               // setActiveColor={setActiveColor}
