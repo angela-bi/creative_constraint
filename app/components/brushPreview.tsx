@@ -70,6 +70,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref
         </style>
       </head>
       <body style="margin:0; overflow:hidden;">
+        <script src="${origin}/utils/bezier-spline.js"></script>
         <script>
           (function() {
             let KL = null;
@@ -77,64 +78,67 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref
             let brushReady = false;
             const pendingMsgs = [];
 
-            // Source - https://stackoverflow.com/a
-            // Posted by Mic, modified by community. See post 'Timeline' for change history
-            // Retrieved 2025-12-02, License - CC BY-SA 4.0
 
-            function rgb2hsv (r, g, b) {
-                let rabs, gabs, babs, rr, gg, bb, h, s, v, diff, diffc, percentRoundFn;
-                rabs = r / 255;
-                gabs = g / 255;
-                babs = b / 255;
-                v = Math.max(rabs, gabs, babs),
-                diff = v - Math.min(rabs, gabs, babs);
-                diffc = c => (v - c) / 6 / diff + 1 / 2;
-                percentRoundFn = num => Math.round(num * 100) / 100;
-                if (diff == 0) {
-                    h = s = 0;
-                } else {
-                    s = diff / v;
-                    rr = diffc(rabs);
-                    gg = diffc(gabs);
-                    bb = diffc(babs);
+            function rgb2hsl(r, g, b) {
+              // https://gist.github.com/mjackson/5311256
+              r /= 255, g /= 255, b /= 255;
 
-                    if (rabs === v) {
-                        h = bb - gg;
-                    } else if (gabs === v) {
-                        h = (1 / 3) + rr - bb;
-                    } else if (babs === v) {
-                        h = (2 / 3) + gg - rr;
-                    }
-                    if (h < 0) {
-                        h += 1;
-                    }else if (h > 1) {
-                        h -= 1;
-                    }
+              var max = Math.max(r, g, b), min = Math.min(r, g, b);
+              var h, s, l = (max + min) / 2;
+
+              if (max == min) {
+                h = s = 0; // achromatic
+              } else {
+                var d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+                switch (max) {
+                  case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                  case g: h = (b - r) / d + 2; break;
+                  case b: h = (r - g) / d + 4; break;
                 }
-                return {
-                    h: Math.round(h * 360),
-                    s: percentRoundFn(s * 100),
-                    v: percentRoundFn(v * 100)
-                };
-            }
 
-            function mapRange(value, inMin, inMax, outMin, outMax) {
-              const v = Math.min(Math.max(value, inMin), inMax);
-              return outMin + ((v - inMin) * (outMax - outMin)) / (inMax - inMin);
-            }
-
-            function pixelToCanvas(pixels, param, alpha) {
-              let total = 0;
-
-              for (let i = 0; i < pixels.length; i++) {
-                //let dist = (i - pixels.length / 2) * alpha;
-                //console.log('dist', dist) dist is the problem here!!!
-                let {h, s, v} = rgb2hsv(...pixels[i]);
-                let value = param === 'h' ? h : param === 's' ? s : v;
-                total += value
+                h /= 6;
               }
 
-              return total / pixels.length;
+              return {'h': h, 's': s, 'l': l };
+            }
+
+            function interpolate(key, hsl) {
+              let spline = null;
+              if (key === 'h') {
+                spline = new Spline({
+                  points: [
+                    { x: 0, y: 1 },
+                    { x: 1, y: 200 }
+                  ],
+                  duration: 1000
+                });
+              } else if (key === 's') { // saturation
+                // spline = new Spline({
+                //   points: [
+                //     { x: 0, y: 1 },
+                //     { x: 0, y: 0.5 }
+                //   ],
+                //   duration: 1000
+                // });
+                return hsl[key]
+              } else if (key === 'l') { // lightness
+                spline = spline = new Spline({
+                  points: [
+                    { x: 0, y: 1 },
+                    { x: 100, y: 0 }
+                  ],
+                  duration: 1000
+                });
+              } else {
+               throw new Error('invalid key')
+              }
+              
+              time = hsl[key] * spline.duration
+              output = spline.pos(time).y;
+              //console.log('output', output)
+              return output
             }
 
             // central message handler
@@ -143,9 +147,6 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref
               const ui = inst.klApp.mobileUi;
               ui.toolspaceIsOpen = false;
               // ui.update();
-
-              //console.log('KL', KL)
-              //KL.draw([{x:50,y:50},{x:200,y:200}]);
 
               switch (msg.type) {
 
@@ -165,25 +166,40 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref
                   break;
 
                 case "updatePixels":
-                  window.pixels = msg.payload.pixels;
-                  let rawSize = pixelToCanvas(pixels, 'h', 0.02);
-                  let brush_size = mapRange(rawSize, -200, 200, 1, 200);
-                  console.log('raw and brush size', rawSize, brush_size)
-                  KL.setBrushSize(rawSize)
+                  window.pixels = msg.payload.pixels; // now just avg rgb
+                  hsl = rgb2hsl(pixels['r'], pixels['g'], pixels['b'])
+                  
+                  let interp_size = interpolate('h', hsl)
+                  console.log('hue and interpolated size', hsl['h'], interp_size)
+                  KL.setBrushSize(interp_size/2) // since klecks doubles the size for some reason
 
-                  let rawOpacity = pixelToCanvas(pixels, 's', 0.0006);
-                  let opacity = mapRange(rawOpacity, -50, 50, 0, 1);
-                  console.log('raw and opacity', rawOpacity, opacity)
-                  KL.setBrushOpacity(rawOpacity) // opacity ranges from 0-1
+                  let interp_opacity = interpolate('s', hsl)
+                  console.log('saturation and interpolated opacity', hsl['s'], interp_opacity)
+                  KL.setBrushOpacity(interp_opacity) // opacity ranges from 0-1
 
-                  let rawScatter = pixelToCanvas(pixels, 'v', 0.0002);
-                  let scatter = mapRange(rawScatter, -100, 100, 0, 100);
-                  KL.setBrushScatter(100-rawScatter);
-                  console.log('rawScatter and scatter', rawScatter, scatter)
+                  let interp_scatter = interpolate('l', hsl)
+                  console.log('lightness and interpolated scatter', hsl['l'], interp_scatter)
+                  KL.setBrushScatter(interp_scatter);
+                  
+                  const inst = KL.instance;
+                  const app = inst.klApp;
 
-                  KL.draw([{ x: 100, y: 100 }, { x: 500, y: 500 }]);
+                  const path = []
+                  const xStart = 200;
+                  const yStart = 0;
+                  let yCurrent = yStart
+                  const yEnd = 1000;
 
-                  break;
+                  for (let i=0; i < 10; i++) {
+                    yCurrent = yCurrent + 100
+                    path.push({x: xStart, y: yCurrent})
+                  }
+
+                  KL.draw(path);
+
+                  //KL.clearLayer();
+
+                break;
               }
             }
 
@@ -208,24 +224,11 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref
               KL = new Klecks({
                 onSubmit: (success) => success(),
                 onGetPenBrushSize: () => lastBrushSize,
-                onDraw: (path) => {
-                  console.log("KL.draw called", path);
-
-                  const inst = KL.instance;
-                  const brush = inst.klApp.brushStroke;
-
-                  brush.beginStroke(path[0].x, path[0].y);
-
-                  for (let i = 1; i < path.length; i++) {
-                    brush.continueStroke(path[i].x, path[i].y);
-                  }
-
-                  brush.endStroke();
-                }
+                //onDraw: (path) => {}
               });
 
               KL.openProject({
-                width: 1000,
+                width: 400,
                 height: 1000,
                 layers: [
                   {

@@ -14,7 +14,7 @@ type PaletteProps = {
 
 export function Palette({ colors, activeColor, setActiveColor }: PaletteProps) {
     const [mappings, setMappings] = useState<Mapping[]>([]);
-    const MAX_MAPPINGS = 5;
+    const MAX_MAPPINGS = 7;
     // const [activeMappingId, setActiveMappingId] = useState<number | null>(null); // this is the id number of the mapping who the user is selecting a color for
 
     // populating mappings

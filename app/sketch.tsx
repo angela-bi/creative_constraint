@@ -120,24 +120,21 @@ function getPixels() {
   let img = get();     // snapshot of the whole canvas
   img.loadPixels();
 
-  let results = [];
+  let sumR = 0;
+  let sumG = 0;
+  let sumB = 0;
 
   for (let x = 0; x < width; x++) {
     for (let y = 0; y < height; y++) {
       let idx = 4 * (y * width + x);
-      let r = img.pixels[idx];
-      let g = img.pixels[idx + 1];
-      let b = img.pixels[idx + 2];
-
-      results.push([
-        r,
-        g,
-        b
-      ]);
+      sumR += img.pixels[idx];
+      sumG += img.pixels[idx + 1];
+      sumB += img.pixels[idx + 2];
     }
   }
 
-  return results;
+  let denom = pixels.length / 4 // four values (r,g,b,a) for every pixel
+  return {'r': sumR / denom, 'g': sumG / denom, 'b': sumB / denom};
 }
 
 let isPointerDown = false;

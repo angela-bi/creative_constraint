@@ -22,13 +22,13 @@ export default function HomePage() {
   const black: Color = {name: 'black', rgb: [0, 0, 0]};
   const pink: Color = {name: 'pink', rgb: [237, 37, 93]};
   const navy: Color = {name: 'blue', rgb: [104, 115, 159]};
-  const lime: Color = {name: 'green', rgb: [175, 210, 121]};
+  const lime: Color = {name: 'green', rgb: [0, 255, 0]};
   const gray: Color = {name: 'gray', rgb: [210, 210, 210]};
   const red: Color = {name: 'pink', rgb: [255, 0, 0]};
   const green: Color = {name: 'green', rgb: [0, 255, 0]};
   const blue: Color = {name: 'blue', rgb: [0, 0, 255]}
   const orange: Color = {name: 'orange', rgb: [255, 164, 0]}
-  const colors = [white, black, red, orange, blue, navy, lime, gray, green];
+  const colors = [white, black, pink, orange, blue, lime, gray, green];
 
   const [activeColor, setActiveColor] = useState<Color>(pink)
  
@@ -50,24 +50,13 @@ export default function HomePage() {
               // setActiveColor={setActiveColor}
             ></BrushPreview>
           </div>
-          <div style={{ flex: "2" }}>
+          {/* <div style={{ flex: "2" }}>
             <KlecksDrawing
               pixels={pixels}
               // soundLevel={soundLevel}
               setActiveColor={setActiveColor}
             />
-            {/* <DrawingSoftware 
-              ratio={ratio}
-              setRatio={setRatio}
-              colors={colors}
-            /> */}
-          </div>
-          {/* <MappingList 
-            colors={colors}
-            activeColor={activeColor}
-            setActiveColor={setActiveColor}
-            soundLevel={soundLevel}
-          ></MappingList> */}
+          </div> */}
         </div>
     </main>
   );

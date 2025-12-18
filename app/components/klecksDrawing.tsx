@@ -95,45 +95,29 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels, setA
             let brushReady = false;
             const pendingMsgs = [];
 
-            // Source - https://stackoverflow.com/a
-            // Posted by Mic, modified by community. See post 'Timeline' for change history
-            // Retrieved 2025-12-02, License - CC BY-SA 4.0
+            function rgb2hsl(r, g, b) {
+              // https://gist.github.com/mjackson/5311256
+              r /= 255, g /= 255, b /= 255;
 
-            function rgb2hsv (r, g, b) {
-                let rabs, gabs, babs, rr, gg, bb, h, s, v, diff, diffc, percentRoundFn;
-                rabs = r / 255;
-                gabs = g / 255;
-                babs = b / 255;
-                v = Math.max(rabs, gabs, babs),
-                diff = v - Math.min(rabs, gabs, babs);
-                diffc = c => (v - c) / 6 / diff + 1 / 2;
-                percentRoundFn = num => Math.round(num * 100) / 100;
-                if (diff == 0) {
-                    h = s = 0;
-                } else {
-                    s = diff / v;
-                    rr = diffc(rabs);
-                    gg = diffc(gabs);
-                    bb = diffc(babs);
+              var max = Math.max(r, g, b), min = Math.min(r, g, b);
+              var h, s, l = (max + min) / 2;
 
-                    if (rabs === v) {
-                        h = bb - gg;
-                    } else if (gabs === v) {
-                        h = (1 / 3) + rr - bb;
-                    } else if (babs === v) {
-                        h = (2 / 3) + gg - rr;
-                    }
-                    if (h < 0) {
-                        h += 1;
-                    }else if (h > 1) {
-                        h -= 1;
-                    }
+              if (max == min) {
+                h = s = 0; // achromatic
+              } else {
+                var d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+                switch (max) {
+                  case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                  case g: h = (b - r) / d + 2; break;
+                  case b: h = (r - g) / d + 4; break;
                 }
-                return {
-                    h: Math.round(h * 360),
-                    s: percentRoundFn(s * 100),
-                    v: percentRoundFn(v * 100)
-                };
+
+                h /= 6;
+              }
+
+              return {'h': h, 's': s, 'l': l };
             }
 
             function mapRange(value, inMin, inMax, outMin, outMax) {
@@ -147,8 +131,8 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels, setA
               for (let i = 0; i < pixels.length; i++) {
                 //let dist = i - (pixels.length / 2) * alpha;
                 //console.log('dist', dist)
-                let {h, s, v} = rgb2hsv(...pixels[i]);
-                let value = param === 'h' ? h : param === 's' ? s : v;
+                let {h, s, l} = rgb2hsl(...pixels[i]);
+                let value = param === 'h' ? h : param === 's' ? s : l;
                 total += value
               }
 
@@ -185,7 +169,7 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels, setA
 
                 case "updatePixels":
                   window.pixels = msg.payload.pixels;
-                  let rawSize = pixelToCanvas(pixels, 'h', 0.002);
+                  let rawSize = pixelToCanvas(pixels, 'h', 1);
                   let brush_size = mapRange(rawSize, -200, 200, 1, 200);
                   console.log('raw and brush size', rawSize, brush_size)
                   KL.setBrushSize(rawSize)
@@ -195,7 +179,7 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels, setA
                   console.log('raw and opacity', rawOpacity, opacity)
                   KL.setBrushOpacity(rawOpacity) // opacity ranges from 0-1
 
-                  let rawScatter = pixelToCanvas(pixels, 'v', 0.0002);
+                  let rawScatter = pixelToCanvas(pixels, 'l', 0.0002);
                   let scatter = mapRange(rawScatter, -100, 100, 0, 100);
                   KL.setBrushScatter(100-scatter);
                   console.log('rawScatter and scatter', rawScatter, scatter)
