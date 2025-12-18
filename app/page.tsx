@@ -50,13 +50,12 @@ export default function HomePage() {
               // setActiveColor={setActiveColor}
             ></BrushPreview>
           </div>
-          {/* <div style={{ flex: "2" }}>
+          <div style={{ flex: "2" }}>
             <KlecksDrawing
               pixels={pixels}
               // soundLevel={soundLevel}
-              setActiveColor={setActiveColor}
             />
-          </div> */}
+          </div>
         </div>
     </main>
   );

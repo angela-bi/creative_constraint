@@ -4,7 +4,7 @@ import { Color, RGB } from "../page";
 type DrawingProps = {
   pixels: RGB[];
   // soundLevel: number;
-  setActiveColor: React.Dispatch<React.SetStateAction<Color>>;
+  //setActiveColor: React.Dispatch<React.SetStateAction<Color>>;
 };
 
 export type KlecksDrawingRef = {
@@ -12,7 +12,7 @@ export type KlecksDrawingRef = {
   setBrushSize: (size: number) => void;
 };
 
-const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels, setActiveColor }, ref) => {
+const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Expose methods to parent via ref
@@ -53,24 +53,6 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels, setA
     iframe.contentWindow.postMessage({ type: "updatePixels", payload: { pixels } }, "*");
   }, [pixels]);
 
-  // useEffect(() => {
-  //   const iframe = iframeRef.current;
-  //   if (!iframe?.contentWindow) return;
-  //   iframe.contentWindow.postMessage({ type: "updateSoundLevel", payload: { soundLevel } }, "*");
-  // }, [soundLevel]);
-
-  // useEffect(() => {
-  //   function handle(ev: MessageEvent) {
-  //     if (ev.data?.type === "activeColorChanged") {
-  //       const rgb = ev.data.rgb; // [r, g, b]
-  //       //console.log("Setting active color from iframe:", rgb);
-  //       setActiveColor(rgb);
-  //     }
-  //   }
-  
-  //   window.addEventListener("message", handle);
-  //   return () => window.removeEventListener("message", handle);
-  // }, [setActiveColor]);
 
   // Inject Klecks into iframe
   useEffect(() => {
@@ -88,6 +70,8 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels, setA
         </style>
       </head>
       <body style="margin:0; overflow:hidden;">
+        <script src="${origin}/utils/bezier-spline.js"></script>
+        <script src="${origin}/utils/color-spline-utils.js"></script>
         <script>
           (function() {
             let KL = null;
@@ -95,60 +79,14 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels, setA
             let brushReady = false;
             const pendingMsgs = [];
 
-            function rgb2hsl(r, g, b) {
-              // https://gist.github.com/mjackson/5311256
-              r /= 255, g /= 255, b /= 255;
-
-              var max = Math.max(r, g, b), min = Math.min(r, g, b);
-              var h, s, l = (max + min) / 2;
-
-              if (max == min) {
-                h = s = 0; // achromatic
-              } else {
-                var d = max - min;
-                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-
-                switch (max) {
-                  case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-                  case g: h = (b - r) / d + 2; break;
-                  case b: h = (r - g) / d + 4; break;
-                }
-
-                h /= 6;
-              }
-
-              return {'h': h, 's': s, 'l': l };
-            }
-
-            function mapRange(value, inMin, inMax, outMin, outMax) {
-              const v = Math.min(Math.max(value, inMin), inMax);
-              return outMin + ((v - inMin) * (outMax - outMin)) / (inMax - inMin);
-            }
-
-            function pixelToCanvas(pixels, param, alpha) {
-              let total = 0;
-
-              for (let i = 0; i < pixels.length; i++) {
-                //let dist = i - (pixels.length / 2) * alpha;
-                //console.log('dist', dist)
-                let {h, s, l} = rgb2hsl(...pixels[i]);
-                let value = param === 'h' ? h : param === 's' ? s : l;
-                total += value
-              }
-
-              return total / pixels.length;
-            }
+            const { rgb2hsl, interpolate } = window.ColorSplineUtils;
 
             // central message handler
             function handleMessage(msg) {
               const inst = KL?.instance;
               const ui = inst.klApp.mobileUi;
-              // ui.toolspaceIsOpen = true;
+              ui.toolspaceIsOpen = false;
               // ui.update();
-              //console.log('inst klecksdrawing, should be true', ui.toolspaceIsOpen)
-
-              const tool = inst.brushTool;
-              const brush = tool?.brush;
 
               switch (msg.type) {
 
@@ -168,23 +106,22 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels, setA
                   break;
 
                 case "updatePixels":
-                  window.pixels = msg.payload.pixels;
-                  let rawSize = pixelToCanvas(pixels, 'h', 1);
-                  let brush_size = mapRange(rawSize, -200, 200, 1, 200);
-                  console.log('raw and brush size', rawSize, brush_size)
-                  KL.setBrushSize(rawSize)
+                  window.pixels = msg.payload.pixels; // now just avg rgb
+                  hsl = rgb2hsl(pixels['r'], pixels['g'], pixels['b'])
+                  
+                  let interp_size = interpolate('h', hsl)
+                  console.log('hue and interpolated size', hsl['h'], interp_size)
+                  KL.setBrushSize(interp_size/2) // since klecks doubles the size for some reason
 
-                  let rawOpacity = pixelToCanvas(pixels, 's', 0.0002);
-                  let opacity = mapRange(rawOpacity, -50, 50, 0, 1);
-                  console.log('raw and opacity', rawOpacity, opacity)
-                  KL.setBrushOpacity(rawOpacity) // opacity ranges from 0-1
+                  let interp_opacity = interpolate('s', hsl)
+                  console.log('saturation and interpolated opacity', hsl['s'], interp_opacity)
+                  KL.setBrushOpacity(interp_opacity) // opacity ranges from 0-1
 
-                  let rawScatter = pixelToCanvas(pixels, 'l', 0.0002);
-                  let scatter = mapRange(rawScatter, -100, 100, 0, 100);
-                  KL.setBrushScatter(100-scatter);
-                  console.log('rawScatter and scatter', rawScatter, scatter)
+                  let interp_scatter = interpolate('l', hsl)
+                  console.log('lightness and interpolated scatter', hsl['l'], interp_scatter)
+                  KL.setBrushScatter(interp_scatter);
 
-                  break;
+                break;
               }
             }
 
@@ -208,11 +145,12 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels, setA
             script.onload = () => {
               KL = new Klecks({
                 onSubmit: (success) => success(),
-                onGetPenBrushSize: () => lastBrushSize
+                onGetPenBrushSize: () => lastBrushSize,
+                //onDraw: (path) => {}
               });
 
               KL.openProject({
-                width: 1000,
+                width: 400,
                 height: 1000,
                 layers: [
                   {
@@ -226,31 +164,6 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels, setA
               });
 
               console.log('KL', KL)
-
-              const waitReady = setInterval(() => {
-                if (KL) {
-                  brushReady = true;
-                  clearInterval(waitReady);
-
-                  setInterval(() => {
-                    if (!KL) return;
-                    const c = KL.getColor();
-                    if (!c) return;
-
-                    window.parent.postMessage(
-                      { type: "activeColorChanged", rgb: [c.r, c.g, c.b] },
-                      "*"
-                    );
-                  }, 200);
-
-                  // flush queued messages
-                  //console.log('pendingMsgs', pendingMsgs)
-                  pendingMsgs.forEach(msg => handleMessage(msg));
-                  pendingMsgs.length = 0;
-
-                  window.parent.postMessage({ type: "klecksReady" }, "*");
-                }
-              }, 5);
             };
             document.head.appendChild(script);
 
@@ -291,5 +204,4 @@ const KlecksDrawing = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels, setA
   );
 });
 
-KlecksDrawing.displayName = "KlecksDrawing";
-export default KlecksDrawing;
+export default BrushPreview;
