@@ -2,9 +2,9 @@
 
 import { useEffect, useCallback, useState, useRef } from "react";
 
-import Sketch from "./sketch";
 import BrushPreview from "./components/brushPreview";
 import KlecksDrawing from "./components/klecksDrawing";
+import Sketch from "./components/sketch";
 
 // export type Ratio = [number, number, number]
 
@@ -49,7 +49,7 @@ export default function HomePage() {
               // setActiveColor={setActiveColor}
             ></BrushPreview>
           </div>
-          <div style={{ flex: "2" }}>
+          <div style={{ flex: "3" }}>
             <KlecksDrawing
               pixels={pixels}
               // soundLevel={soundLevel}
