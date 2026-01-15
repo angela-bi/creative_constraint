@@ -70,6 +70,11 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
           /* Hide the tool sidebar completely */
           .kl-toolbar {
             display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
           }
         </style>
       </head>
@@ -128,7 +133,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   let opacity_change = 0;
                   let scatter_change = 0;
                             
-                  for (let i = 0; i < pixels.length / 4; i+= 4) {
+                  for (let i = 0; i < pixels.length; i += 4) {
                     const {x,y} = indexToXY(i, 500); // because array is 500x500x4
 
                     let curr_pixel = getPixel(pixels, 500, x, y);
@@ -153,7 +158,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   console.log('change', size_change, opacity_change, scatter_change)
                   
                   norm_size_change = size_change / pixels.length * 1000;
-                  norm_opacity_change = opacity_change / pixels.length * 200;
+                  norm_opacity_change = opacity_change / pixels.length * 100;
                   norm_scatter_change = scatter_change / pixels.length * 500;
                   
                   console.log('normalized changes', norm_size_change, norm_opacity_change, norm_scatter_change)
@@ -173,7 +178,8 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   prevOpacity = newOpacity;
                   prevScatter = newScatter;
                   
-                prevPixels = pixels;
+                // Copy the array, don't assign a reference!
+                prevPixels = new Uint8ClampedArray(pixels);
 
                 const inst = KL.instance;
                   const app = inst.klApp;
@@ -208,6 +214,34 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
               handleMessage(msg);
             });
 
+            // Function to hide toolbar
+            function hideToolbar() {
+              const toolbar = document.querySelector('.kl-toolbar');
+              if (toolbar) {
+                toolbar.style.display = 'none';
+                toolbar.style.visibility = 'hidden';
+                toolbar.style.opacity = '0';
+                toolbar.style.width = '0';
+                toolbar.style.height = '0';
+                toolbar.style.overflow = 'hidden';
+              }
+            }
+
+            // MutationObserver to hide toolbar as soon as it appears
+            const observer = new MutationObserver(() => {
+              hideToolbar();
+            });
+
+            // Start observing the document body for changes
+            observer.observe(document.body, {
+              childList: true,
+              subtree: true
+            });
+
+            // Also try to hide it immediately and periodically
+            hideToolbar();
+            setInterval(hideToolbar, 100);
+
             // load Klecks script and initialize KL
             const script = document.createElement('script');
             script.src = '${origin}/klecks/embed.js';
@@ -233,10 +267,18 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
               });
 
               // Close toolspace on initialization
-              const inst = KL.instance;
-              if (inst?.klApp?.mobileUi) {
-                inst.klApp.mobileUi.toolspaceIsOpen = false;
-              }
+              setTimeout(() => {
+                const inst = KL.instance;
+                if (inst?.klApp?.mobileUi) {
+                  inst.klApp.mobileUi.toolspaceIsOpen = false;
+                }
+                hideToolbar();
+              }, 100);
+
+              // Keep hiding it after project opens
+              setTimeout(hideToolbar, 500);
+              setTimeout(hideToolbar, 1000);
+              setTimeout(hideToolbar, 2000);
 
               console.log('KL', KL)
             };

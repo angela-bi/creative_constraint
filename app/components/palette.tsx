@@ -10,10 +10,12 @@ type PaletteProps = {
     colors: Color[];
     activeColor: Color;
     setActiveColor: React.Dispatch<React.SetStateAction<Color>>;
+    onBrushModeChange?: (mode: "paint" | "smudge") => void;
 };
 
-export function Palette({ colors, activeColor, setActiveColor }: PaletteProps) {
+export function Palette({ colors, activeColor, setActiveColor, onBrushModeChange }: PaletteProps) {
     const [mappings, setMappings] = useState<Mapping[]>([]);
+    const [brushMode, setBrushMode] = useState<"paint" | "smudge">("paint");
     const MAX_MAPPINGS = 7;
     // const [activeMappingId, setActiveMappingId] = useState<number | null>(null); // this is the id number of the mapping who the user is selecting a color for
 
@@ -32,6 +34,14 @@ export function Palette({ colors, activeColor, setActiveColor }: PaletteProps) {
     // when color button is clicked
     const handleColorButtonClick = (color: Color) => {
         setActiveColor(color);
+        setBrushMode("paint");
+        onBrushModeChange?.("paint");
+    };
+
+    // when smudge button is clicked
+    const handleSmudgeClick = () => {
+        setBrushMode("smudge");
+        onBrushModeChange?.("smudge");
     };
 
     return (
@@ -55,7 +65,19 @@ export function Palette({ colors, activeColor, setActiveColor }: PaletteProps) {
             /> */}
             {mappings.map((mapping) => {
                 const { id, color, input, image_path } = mapping;
-                const isActive = activeColor?.rgb && activeColor.rgb[0] === color.rgb[0] && activeColor.rgb[1] === color.rgb[1] && activeColor.rgb[2] === color.rgb[2];
+                // No color is active when smudge mode is active
+                const isActive = brushMode === "paint" && activeColor?.rgb && activeColor.rgb[0] === color.rgb[0] && activeColor.rgb[1] === color.rgb[1] && activeColor.rgb[2] === color.rgb[2];
+                
+                // Determine label text based on color
+                let labelText = "";
+                const [r, g, b] = color.rgb;
+                if (r === 255 && g === 0 && b === 0) {
+                    labelText = "size";
+                } else if (r === 255 && g === 255 && b === 0) {
+                    labelText = "opacity";
+                } else if (r === 0 && g === 0 && b === 255) {
+                    labelText = "scatter";
+                }
                 // console.log(mapping)
 
                 return (
@@ -79,9 +101,23 @@ export function Palette({ colors, activeColor, setActiveColor }: PaletteProps) {
                             // clipPath: "circle(50% at 50% 50%)",
                             opacity: isActive ? 1 : 0.6,
                             transition: "opacity 0.2s ease-in-out",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            position: "relative",
                         }}
                         onClick={() => handleColorButtonClick(color)}
                     >
+                        {labelText && (
+                            <span
+                                style={{
+                                    fontSize: "10px",
+                                    color: "white",
+                                }}
+                            >
+                                {labelText}
+                            </span>
+                        )}
                         {/* {id === 0 && (
                             <div
                             style={{
@@ -101,6 +137,25 @@ export function Palette({ colors, activeColor, setActiveColor }: PaletteProps) {
                     </div>
                 )
             })}
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <button
+                    onClick={handleSmudgeClick}
+                    style={{
+                        backgroundColor: 'lightgray',
+                        borderRadius: '5px',
+                        padding: '5px',
+                        cursor: 'pointer',
+                        border: '2px solid rgb(0,0,0,0.5)',
+                        width: "50px",
+                        height: "50px",
+                        opacity: brushMode === "smudge" ? 1 : 0.6,
+                        transition: "opacity 0.2s ease-in-out",
+                    }}
+                    title="Smudge"
+                >
+                    👆
+                </button>
+            </div>
         </div>
     )
 }

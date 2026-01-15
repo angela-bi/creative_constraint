@@ -124,7 +124,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   let opacity_change = 0;
                   let scatter_change = 0;
                             
-                  for (let i = 0; i < pixels.length / 4; i+= 4) {
+                  for (let i = 0; i < pixels.length; i += 4) {
                     const {x,y} = indexToXY(i, 500); // because array is 500x500x4
 
                     let curr_pixel = getPixel(pixels, 500, x, y);
@@ -149,7 +149,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   console.log('change', size_change, opacity_change, scatter_change)
                   
                   norm_size_change = size_change / pixels.length * 1000;
-                  norm_opacity_change = opacity_change / pixels.length * 200;
+                  norm_opacity_change = opacity_change / pixels.length * 100;
                   norm_scatter_change = scatter_change / pixels.length * 500;
                   
                   console.log('normalized changes', norm_size_change, norm_opacity_change, norm_scatter_change)
@@ -169,7 +169,8 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   prevOpacity = newOpacity;
                   prevScatter = newScatter;
                   
-                prevPixels = pixels;
+                // Copy the array, don't assign a reference!
+                prevPixels = new Uint8ClampedArray(pixels);
               }
             }
 

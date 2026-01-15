@@ -130,6 +130,7 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
           colors={colors}
           activeColor={activeColor}
           setActiveColor={setActiveColor}
+          onBrushModeChange={(mode) => sendMessage("setBrushMode", mode)}
         ></Palette>
       </div>
       <div>
@@ -162,21 +163,6 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
           style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
         >
           Clear Canvas
-        </button>
-        <button
-          onClick={() => {
-            //setcolor(new color)
-            sendMessage("setBrushMode", "smudge")
-          }}
-          style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
-        >
-          Smudge
-        </button>
-        <button
-          onClick={() => sendMessage("setBrushMode", "paint")}
-          style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
-        >
-          Watercolor
         </button>
       </div>
       {/* <input
