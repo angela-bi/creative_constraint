@@ -10,13 +10,15 @@ import { Palette } from "./palette";
 
 type SketchProps = {
   // ratio: Ratio;
-  setPixels: React.Dispatch<React.SetStateAction<RGB[]>>;
+  // setPixels: React.Dispatch<React.SetStateAction<Uint8ClampedArray>>;
+  pixelsRef: React.RefObject<Uint8ClampedArray | null>;
+  setFrameId: React.Dispatch<React.SetStateAction<number>>
   colors: Color[];
   activeColor: Color;
   setActiveColor: React.Dispatch<React.SetStateAction<Color>>;
 };
 
-export default function Sketch({ setPixels, colors, activeColor, setActiveColor }: SketchProps) {
+export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, setActiveColor }: SketchProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [mounted, setMounted] = useState(false);
   const binInputRef = useRef<HTMLInputElement>(null);
@@ -27,26 +29,12 @@ export default function Sketch({ setPixels, colors, activeColor, setActiveColor 
     iframeRef.current?.contentWindow?.postMessage({ type, payload }, "*");
   }
 
-  function exportBIN() {
-    sendMessage("exportBIN");
-  }
-
-  function handleBINUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      sendMessage("importBIN", reader.result);
-    };
-    reader.readAsArrayBuffer(file);
-  }
-
   function savePNG() {
     sendMessage("savePNG");
   }
 
   function importPNG(e: React.ChangeEvent<HTMLInputElement>) {
+    // console.log('importPNG called')
     const file = e.target.files?.[0];
     if (!file) return;
   
@@ -91,22 +79,12 @@ export default function Sketch({ setPixels, colors, activeColor, setActiveColor 
   }, [])
 
   useEffect(() => {
-    if (!iframeRef.current) return;
-    const iframe = iframeRef.current;
-  
-    // Send color updates to iframe
-    if (colors.length > 0 && iframe.contentWindow) {
-      iframe.contentWindow.postMessage(
-        { type: "updateColor", payload: activeColor },
-        "*"
-      );
-    }
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === "updatePixels") {
         const pixels = event.data.payload;
-        //('event.data.payload', event.data.payload)
-        setPixels(pixels)
+        pixelsRef.current = new Uint8ClampedArray(pixels);
+        setFrameId(id => id + 1);
       }
       if (event.data?.type === "canvasPNG") {
         setSavedCanvases(prev => [event.data.payload, ...prev]);
@@ -115,7 +93,7 @@ export default function Sketch({ setPixels, colors, activeColor, setActiveColor 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
 
-  }, [activeColor]);
+  }, []);
 
 
   useEffect(() => {
@@ -138,8 +116,8 @@ export default function Sketch({ setPixels, colors, activeColor, setActiveColor 
       <iframe
         ref={iframeRef}
         style={{
-          width: "100%",
-          height: "500px",
+          width: "520px",
+          height: "520px",
           border: "1px solid gray",
           borderRadius: "12px",
           padding: "10px"
@@ -171,7 +149,6 @@ export default function Sketch({ setPixels, colors, activeColor, setActiveColor 
         {/* <button onClick={exportBIN} style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}>
         Export BIN file
         </button>
-        <button onClick={savePNG} style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}>
         Export PNG file
         </button> */}
         <button

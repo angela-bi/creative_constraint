@@ -378,6 +378,11 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
+"@kurkle/color@^0.3.0":
+  version "0.3.4"
+  resolved "https://registry.npmjs.org/@kurkle/color/-/color-0.3.4.tgz"
+  integrity sha512-M5UknZPHRu3DEDWoipU6sE8PdkZ6Z/S+v4dD+Ke8IaNlpdSQah50lz1KtcFBa2vsdOnwbbnxJwVM4wty6udA5w==
+
 "@mui/core-downloads-tracker@^7.3.5":
   version "7.3.5"
   resolved "https://registry.npmjs.org/@mui/core-downloads-tracker/-/core-downloads-tracker-7.3.5.tgz"
@@ -874,6 +879,39 @@ acorn@^7.1.1:
   resolved "https://registry.npmjs.org/acorn/-/acorn-7.4.1.tgz"
   integrity sha512-nQyp0o1/mNdbTO1PO6kHkwSrmgZ0MT/jCCpNiwbUjGoRN4dlBhqJtoQuCnEOKzgTVwg0ZWiCoQy6SxMebQVh8A==
 
+ag-charts-community@13.0.0:
+  version "13.0.0"
+  resolved "https://registry.npmjs.org/ag-charts-community/-/ag-charts-community-13.0.0.tgz"
+  integrity sha512-zIBokGrkvpySdksjCFVC/gOrtQSFeJ8j8n1WT7XV4UW1qvEeBIlme6Ng0srWS0HaACwNg9hn9WDEhnBDldbRTg==
+  dependencies:
+    ag-charts-core "13.0.0"
+    ag-charts-locale "13.0.0"
+    ag-charts-types "13.0.0"
+
+ag-charts-core@13.0.0:
+  version "13.0.0"
+  resolved "https://registry.npmjs.org/ag-charts-core/-/ag-charts-core-13.0.0.tgz"
+  integrity sha512-OFN6aDhKDKzez8sSN1NEO/j/rNa0C5G/9EH5FkNFdVh4T96Ul19xpyZupZZl4kTvENN+ayGwRU6Ui8zau71Rog==
+  dependencies:
+    ag-charts-types "13.0.0"
+
+ag-charts-locale@13.0.0:
+  version "13.0.0"
+  resolved "https://registry.npmjs.org/ag-charts-locale/-/ag-charts-locale-13.0.0.tgz"
+  integrity sha512-QUJsinNJIQgtaOiz+DvnCPynux3UwYrk9TIdXl0x3dH9OjSWPrF38cshDD7CZ8qJVR4YJloRyJ1aWGYOUBipUQ==
+
+ag-charts-react@^13.0.0:
+  version "13.0.0"
+  resolved "https://registry.npmjs.org/ag-charts-react/-/ag-charts-react-13.0.0.tgz"
+  integrity sha512-oQ8ds+AYnTPmOTfVe+8cOxSaomjXA9gwiM9Pq1DuOG8F/I/2QH89+KzNVuoxOktfKNxiUaJwsQKRDFNN/VlkbQ==
+  dependencies:
+    ag-charts-community "13.0.0"
+
+ag-charts-types@13.0.0:
+  version "13.0.0"
+  resolved "https://registry.npmjs.org/ag-charts-types/-/ag-charts-types-13.0.0.tgz"
+  integrity sha512-mqOmKS0q4s2tt/C+CBG2Z+HWrSKYvRUCAlQzcKXKfARE3v/KdnBuxfjafa2c8ivElTTywdVdOe0q52Cow2Oggw==
+
 agent-base@6:
   version "6.0.2"
   resolved "https://registry.npmjs.org/agent-base/-/agent-base-6.0.2.tgz"
@@ -1125,6 +1163,13 @@ chalk@^4.0.0:
   dependencies:
     ansi-styles "^4.1.0"
     supports-color "^7.1.0"
+
+chart.js@^4.1.1, chart.js@^4.5.1:
+  version "4.5.1"
+  resolved "https://registry.npmjs.org/chart.js/-/chart.js-4.5.1.tgz"
+  integrity sha512-GIjfiT9dbmHRiYi6Nl2yFCq7kkwdkp1W/lp2J99rX0yo9tgJGn3lKQATztIjb5tVtevcBtIdICNWqlq5+E8/Pw==
+  dependencies:
+    "@kurkle/color" "^0.3.0"
 
 chownr@^3.0.0:
   version "3.0.0"
@@ -2916,6 +2961,11 @@ queue-microtask@^1.2.2:
   resolved "https://registry.npmjs.org/queue-microtask/-/queue-microtask-1.2.3.tgz"
   integrity sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==
 
+react-chartjs-2@^5.3.1:
+  version "5.3.1"
+  resolved "https://registry.npmjs.org/react-chartjs-2/-/react-chartjs-2-5.3.1.tgz"
+  integrity sha512-h5IPXKg9EXpjoBzUfyWJvllMjG2mQ4EiuHQFhms/AjUm0XSZHhyRy2xVmLXHKrtcdrPO4mnGqRtYoD0vp95A0A==
+
 react-color@^2.19.3:
   version "2.19.3"
   resolved "https://registry.npmjs.org/react-color/-/react-color-2.19.3.tgz"
@@ -2956,7 +3006,7 @@ react-transition-group@^4.4.5:
     loose-envify "^1.4.0"
     prop-types "^15.6.2"
 
-react@*, "react@^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react@^17.0.0 || ^18.0.0 || ^19.0.0", "react@^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", react@^19.1.0, "react@>= 16.8.0 || 17.x.x || ^18.0.0-0 || ^19.0.0-0", react@>=16.6.0, react@>=16.8, react@>=16.8.0, react@>=17, react@19.1.0:
+react@*, "react@^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react@^17.0.0 || ^18.0.0 || ^19.0.0", "react@^18.0.0 || ^19.0.0", "react@^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", react@^19.1.0, "react@>= 16.8.0 || 17.x.x || ^18.0.0-0 || ^19.0.0-0", react@>=16.6.0, react@>=16.8, react@>=16.8.0, react@>=17, react@19.1.0:
   version "19.1.0"
   resolved "https://registry.npmjs.org/react/-/react-19.1.0.tgz"
   integrity sha512-FS+XFBNvn3GTAWq26joslQgWNoFu08F4kl0J4CgdNKADkdSGXQyTCnKteIAJy96Br6YbpEU1LSzV5dYtjMkMDg==

@@ -1,3 +1,4 @@
+
 window.sendPixels = (pixels) => {
     window.parent.postMessage(
         { type: "updatePixels", payload: pixels },
@@ -15,64 +16,19 @@ function samplePixels() {
     const h = height;
   
     const result = getPixels(snapshot)
-    sendPixels(result);
-  }
-  
-  function averageColumnColors() {
-    const numCols = 10;
-    const colWidth = width / numCols;
-    
-    let img = get();     // snapshot of the whole canvas
-    img.loadPixels();
-  
-    let results = [];
-  
-    for (let c = 0; c < numCols; c++) {
-      let rSum = 0, gSum = 0, bSum = 0, count = 0;
-  
-      let xStart = Math.floor(c * colWidth);
-      let xEnd = Math.floor((c + 1) * colWidth);
-  
-      for (let x = xStart; x < xEnd; x++) {
-        for (let y = 0; y < height; y++) {
-          let idx = 4 * (y * width + x);
-          rSum += img.pixels[idx];
-          gSum += img.pixels[idx + 1];
-          bSum += img.pixels[idx + 2];
-          count++;
-        }
-      }
-  
-      results.push([
-        Math.round(rSum / count),
-        Math.round(gSum / count),
-        Math.round(bSum / count)
-      ]);
-    }
-  
-    return results;
+    sendPixels(result.data);
   }
   
   function getPixels() {
+    loadPixels();
   
-    let img = get();     // snapshot of the whole canvas
-    img.loadPixels();
+    const buffer = new Uint8ClampedArray(pixels);
   
-    let sumR = 0;
-    let sumG = 0;
-    let sumB = 0;
-  
-    for (let x = 0; x < width; x++) {
-      for (let y = 0; y < height; y++) {
-        let idx = 4 * (y * width + x);
-        sumR += img.pixels[idx];
-        sumG += img.pixels[idx + 1];
-        sumB += img.pixels[idx + 2];
-      }
-    }
-  
-    let denom = pixels.length / 4 // four values (r,g,b,a) for every pixel
-    return {'r': sumR / denom, 'g': sumG / denom, 'b': sumB / denom};
+    return {
+      width,
+      height,
+      data: buffer, // rgba
+    };
   }
   
   let isPointerDown = false;
@@ -116,7 +72,7 @@ function samplePixels() {
   let prevMouseX, prevMouseY;
   let sliderDrops, buttonDry, buttonWet, buttonDefault;
   let colorPicker;
-  let colorPicked = [266, 0, 168];
+  let colorPicked = [255, 0, 0];
   let paint = [];
   let tempPaint1 = [];
   let tempPaint2 = [];
@@ -483,6 +439,7 @@ function samplePixels() {
   }
   
   function importPNG(dataURL) {
+    clearCanvas();
     loadImage(dataURL, (img) => {
       // Draw image into the canvas so we can read its pixels
       image(img, 0, 0, width, height);

@@ -5,6 +5,7 @@ import { useEffect, useCallback, useState, useRef } from "react";
 import BrushPreview from "./components/brushPreview";
 import KlecksDrawing from "./components/klecksDrawing";
 import Sketch from "./components/sketch";
+import HSLHistograms from "./components/HSLHistograms";
 
 // export type Ratio = [number, number, number]
 
@@ -14,7 +15,8 @@ export type Color = {name: string, rgb: RGB}
 export default function HomePage() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [pixels, setPixels] = useState<RGB[]>([])
+  const pixelsRef = useRef<Uint8ClampedArray | null>(null);
+  const [frameId, setFrameId] = useState(0);
   const [soundLevel, setSoundLevel] = useState<number>(0);
 
   const white: Color = {name: 'white', rgb: [255, 255, 255]};
@@ -27,31 +29,37 @@ export default function HomePage() {
   const blue: Color = {name: 'blue', rgb: [0, 0, 255]}
   const orange: Color = {name: 'orange', rgb: [255, 92, 0]}
   const yellow: Color = {name: 'yellow', rgb: [255, 255, 0]}
-  const colors = [white, black, orange, yellow, green, blue, pink];
+  const colors = [white, red, yellow, blue];
 
   const [activeColor, setActiveColor] = useState<Color>(pink)
- 
   
   return (
     <main className="p-6">
         <div style={{ display: "flex", flexDirection: "row", height: "95vh", width: "100%", gap: '20px'}}>
           <div style={{ flex: "1" }}>
             <Sketch
-              setPixels={setPixels}
+              pixelsRef={pixelsRef}
+              setFrameId={setFrameId}
               colors={colors}
               activeColor={activeColor}
               setActiveColor={setActiveColor}
             />
+            {/* <HSLHistograms
+              pixelsRef={pixelsRef}
+              frameId={frameId}
+            ></HSLHistograms> */}
           </div>
           <div style={{ flex: "0.5"  }}>
             <BrushPreview
-              pixels={pixels}
+              pixelsRef={pixelsRef}
+              frameId={frameId}
               // setActiveColor={setActiveColor}
             ></BrushPreview>
           </div>
           <div style={{ flex: "3" }}>
             <KlecksDrawing
-              pixels={pixels}
+              pixelsRef={pixelsRef}
+              frameId={frameId}
               // soundLevel={soundLevel}
             />
           </div>

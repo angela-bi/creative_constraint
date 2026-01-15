@@ -2,7 +2,8 @@ import React, { useEffect, useRef, forwardRef, useImperativeHandle, SetStateActi
 import { Color, RGB } from "../page";
 
 type DrawingProps = {
-  pixels: RGB[];
+  pixelsRef: React.RefObject<Uint8ClampedArray | null>;
+  frameId: number;
   // soundLevel: number;
   //setActiveColor: React.Dispatch<React.SetStateAction<Color>>;
 };
@@ -12,7 +13,7 @@ export type KlecksDrawingRef = {
   setBrushSize: (size: number) => void;
 };
 
-const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref) => {
+const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, frameId }, ref) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Expose methods to parent via ref
@@ -49,9 +50,8 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe?.contentWindow) return;
-    //console.log('avg', avg)
-    iframe.contentWindow.postMessage({ type: "updatePixels", payload: { pixels } }, "*");
-  }, [pixels]);
+    iframe.contentWindow.postMessage({ type: "updatePixels", payload: { pixelsRef } }, "*");
+  }, [frameId]);
 
 
   // Inject Klecks into iframe
@@ -72,6 +72,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref
       <body style="margin:0; overflow:hidden;">
         <script src="${origin}/utils/bezier-spline.js"></script>
         <script src="${origin}/utils/color-spline-utils.js"></script>
+        <script src="${origin}/utils/pixel-utils.js"></script>
         <script>
           (function() {
             let KL = null;
@@ -79,7 +80,24 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref
             let brushReady = false;
             const pendingMsgs = [];
 
-            const { rgb2hsl, interpolate } = window.ColorSplineUtils;
+            // starting brush params
+            let prevSize = 4;
+            let prevOpacity = 1;
+            let prevScatter = 0;
+
+            let norm_size_change = 0;
+            let norm_opacity_change = 0;
+            let norm_scatter_change = 0;
+
+
+            let newSize = prevSize;
+            let newOpacity = prevOpacity;
+            let newScatter = prevScatter;
+
+            let prevPixels = new Uint8ClampedArray(1000).fill(255);
+
+            const {solvePaintRatios, rgb2hsl, interpolate, sigmoid, customSigmoid } = window.ColorSplineUtils;
+            const {indexToXY, getPixel, pixel_is_different} = window.PixelUtils;
 
             // central message handler
             function handleMessage(msg) {
@@ -90,38 +108,68 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref
 
               switch (msg.type) {
 
-                case "setBrushSize":
-                  if (brush) {
-                    brush.size = msg.size;
-                    lastBrushSize = msg.size;
-                  }
-                  break;
-
-                case "getBrushSize":
-                  window.parent.postMessage({
-                    type: "brushSizeResponse",
-                    requestId: msg.requestId,
-                    size: brush ? brush.size : null
-                  }, "*");
-                  break;
-
                 case "updatePixels":
-                  window.pixels = msg.payload.pixels; // now just avg rgb
-                  hsl = rgb2hsl(pixels['r'], pixels['g'], pixels['b'])
+                  window.pixels = msg.payload.pixelsRef.current;
+                  console.log('prevPixels', prevPixels);
+                  console.log('pixels', pixels);
+
+                  if (!pixels || !prevPixels || pixels.length !== prevPixels.length) {
+                    if (pixels && pixels.length > 0) {
+                      prevPixels = new Uint8ClampedArray(pixels);
+                    }
+                    return;
+                  }
+
+                  let size_change = 0;
+                  let opacity_change = 0;
+                  let scatter_change = 0;
+                            
+                  for (let i = 0; i < pixels.length / 4; i+= 4) {
+                    const {x,y} = indexToXY(i, 500); // because array is 500x500x4
+
+                    let curr_pixel = getPixel(pixels, 500, x, y);
+                    let prev_pixel = getPixel(prevPixels, 500, x, y);
+
+                    if (pixel_is_different(prev_pixel, curr_pixel)) {
+                      //let location_value = customSigmoid(x,y);
+
+                      let curr_ratio = solvePaintRatios(curr_pixel['r'], curr_pixel['g'], curr_pixel['b'])
+                      let prev_ratio = solvePaintRatios(prev_pixel['r'], prev_pixel['g'], prev_pixel['b'])
+                      //console.log(curr_ratio, prev_ratio)
+
+                      let ratio_diff_red = curr_ratio['red'] - prev_ratio['red']
+                      let ratio_diff_yellow = curr_ratio['yellow'] - prev_ratio['yellow']
+                      let ratio_diff_blue = curr_ratio['blue'] - prev_ratio['blue']
+                      size_change += ratio_diff_red
+                      opacity_change += ratio_diff_yellow
+                      scatter_change += ratio_diff_blue
+                    }
+                  }
                   
-                  let interp_size = interpolate('h', hsl)
-                  console.log('hue and interpolated size', hsl['h'], interp_size)
-                  KL.setBrushSize(interp_size/2) // since klecks doubles the size for some reason
+                  console.log('change', size_change, opacity_change, scatter_change)
+                  
+                  norm_size_change = size_change / pixels.length * 1000;
+                  norm_opacity_change = opacity_change / pixels.length * 200;
+                  norm_scatter_change = scatter_change / pixels.length * 500;
+                  
+                  console.log('normalized changes', norm_size_change, norm_opacity_change, norm_scatter_change)
+                  console.log('prevsize opacity scatter', prevSize, prevOpacity, prevScatter)
+                  
+                  newSize = (prevSize + norm_size_change);
+                  newOpacity = prevOpacity - norm_opacity_change;
+                  newScatter = prevScatter + norm_scatter_change;
 
-                  let interp_opacity = interpolate('s', hsl)
-                  console.log('saturation and interpolated opacity', hsl['s'], interp_opacity)
-                  KL.setBrushOpacity(interp_opacity) // opacity ranges from 0-1
+                  console.log('new params', newSize, newOpacity, newScatter)
 
-                  let interp_scatter = interpolate('l', hsl)
-                  console.log('lightness and interpolated scatter', hsl['l'], interp_scatter)
-                  KL.setBrushScatter(interp_scatter);
+                  KL.setBrushSize(newSize) // since klecks doubles the size for some reason
+                  KL.setBrushOpacity(newOpacity) // opacity ranges from 0-1, same size
+                  KL.setBrushScatter(newScatter); // scatter ranges from 0-1, same size
 
-                break;
+                  prevSize = newSize;
+                  prevOpacity = newOpacity;
+                  prevScatter = newScatter;
+                  
+                prevPixels = pixels;
               }
             }
 
@@ -168,7 +216,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixels }, ref
             document.head.appendChild(script);
 
           })();
-          </script>
+        </script>
       </body>
       </html>
     `;
