@@ -108,16 +108,6 @@ export function Palette({ colors, activeColor, setActiveColor, onBrushModeChange
                         }}
                         onClick={() => handleColorButtonClick(color)}
                     >
-                        {labelText && (
-                            <span
-                                style={{
-                                    fontSize: "10px",
-                                    color: "white",
-                                }}
-                            >
-                                {labelText}
-                            </span>
-                        )}
                         {/* {id === 0 && (
                             <div
                             style={{

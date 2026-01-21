@@ -29,7 +29,8 @@ export default function HomePage() {
   const blue: Color = {name: 'blue', rgb: [0, 0, 255]}
   const orange: Color = {name: 'orange', rgb: [255, 92, 0]}
   const yellow: Color = {name: 'yellow', rgb: [255, 255, 0]}
-  const colors = [white, red, yellow, blue];
+  const purple: Color = {name: 'purple', rgb: [148, 0, 211]}
+  const colors = [pink, orange, yellow, green, blue, purple];
 
   const [activeColor, setActiveColor] = useState<Color>(pink)
   
