@@ -61,6 +61,16 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
         // Forward the message to the iframe
         iframeRef.current?.contentWindow?.postMessage({ type: "smudgingActive" }, "*");
       }
+      if (event.data?.type === "smudgingInactive") {
+        console.log('smudgingInactive received in klecksDrawing');
+        // Forward the message to the iframe
+        iframeRef.current?.contentWindow?.postMessage({ type: "smudgingInactive" }, "*");
+      }
+      if (event.data?.type === "resetBrushParams") {
+        console.log('resetBrushParams received in klecksDrawing');
+        // Forward the message to the iframe
+        iframeRef.current?.contentWindow?.postMessage({ type: "resetBrushParams" }, "*");
+      }
     };
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
@@ -102,6 +112,9 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
             let norm_opacity_change = 0;
             let norm_scatter_change = 0;
 
+            let size_change = 0;
+            let opacity_change = 0;
+            let scatter_change = 0;
 
             let newSize = prevSize;
             let newOpacity = prevOpacity;
@@ -126,8 +139,45 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
               switch (msg.type) {
 
                 case "smudgingActive":
-                  console.log('smudgingActive received in iframe');
+                  //console.log('smudgingActive received in iframe');
                   smudgingActive = true;
+                  break;
+
+                case "smudgingInactive":
+                  //console.log('smudgingInactive received in iframe');
+                  smudgingActive = false;
+                  break;
+
+                case "resetBrushParams":
+                  if (KL) {
+                    // Reset brush parameters to defaults
+                    prevSize = 4;
+                    prevOpacity = 1;
+                    prevScatter = 0;
+                    newSize = 4;
+                    newOpacity = 1;
+                    newScatter = 0;
+                    
+                    // Reset change tracking variables
+                    size_change = 0;
+                    opacity_change = 0;
+                    scatter_change = 0;
+                    norm_size_change = 0;
+                    norm_opacity_change = 0;
+                    norm_scatter_change = 0;
+                    
+                    // Reset prevPixels to cleared canvas state (all white)
+                    if (prevPixels && prevPixels.length > 0) {
+                      prevPixels = new Uint8ClampedArray(prevPixels.length).fill(255);
+                    }
+                    
+                    // Apply the reset values to Klecks
+                    KL.setBrushSize(4);
+                    KL.setBrushOpacity(1);
+                    KL.setBrushScatter(0);
+                    
+                    console.log('reset values in klecksdrawing iframe')
+                  }
                   break;
 
                 case "updatePixels":
@@ -139,10 +189,6 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                     }
                     return;
                   }
-
-                  let size_change = 0;
-                  let opacity_change = 0;
-                  let scatter_change = 0;
                             
                   for (let i = 0; i < pixels.length; i += 4) {
                     const {x,y} = indexToXY(i, 500); // because array is 500x500x4
@@ -161,6 +207,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                       let ratio_diff_yellow = curr_ratio['yellow'] - prev_ratio['yellow']
                       let ratio_diff_blue = curr_ratio['blue'] - prev_ratio['blue']
 
+                      //console.log('smudgingActive', smudgingActive)
                       if (smudgingActive) {
                         ratio_diff_red = ratio_diff_red * -1
                         ratio_diff_yellow = ratio_diff_yellow * -1

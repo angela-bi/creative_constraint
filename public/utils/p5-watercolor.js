@@ -442,6 +442,10 @@ function samplePixels() {
   
     tempPaint1 = paint;
     tempPaint2 = paint;
+    
+    // Broadcast message to reset brush parameters
+    console.log('sending resetBrushParams')
+    window.parent.postMessage({ type: "resetBrushParams" }, "*");
   }
   
   function handleFile(file) {

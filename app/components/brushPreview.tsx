@@ -63,6 +63,16 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
           payload: event.data.payload 
         }, "*");
       }
+      if (event.data?.type === "smudgingActive") {
+        console.log('smudgingActive received in brushPreview');
+        // Forward the message to the iframe
+        iframeRef.current?.contentWindow?.postMessage({ type: "smudgingActive" }, "*");
+      }
+      if (event.data?.type === "resetBrushParams") {
+        console.log('resetBrushParams received in brushPreview');
+        // Forward the message to the iframe
+        iframeRef.current?.contentWindow?.postMessage({ type: "resetBrushParams" }, "*");
+      }
     };
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
@@ -108,6 +118,10 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
             let prevOpacity = 1;
             let prevScatter = 0;
 
+            let size_change = 0;
+            let opacity_change = 0;
+            let scatter_change = 0;
+
             let norm_size_change = 0;
             let norm_opacity_change = 0;
             let norm_scatter_change = 0;
@@ -116,6 +130,8 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
             let newSize = prevSize;
             let newOpacity = prevOpacity;
             let newScatter = prevScatter;
+
+            let smudgingActive = false;
 
             let prevPixels = new Uint8ClampedArray(1000).fill(255);
 
@@ -133,13 +149,45 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
 
               switch (msg.type) {
 
-                case "setBrushColor":
-                  if (KL && msg.payload) {
-                    try {
-                      KL.setBrushColor([msg.payload['r'],msg.payload['g'], msg.payload['b']]);
-                    } catch (e) {
-                      console.log('Error setting brush color:', e);
+                // case "setBrushColor":
+                //   if (KL && msg.payload) {
+                //     try {
+                //       KL.setBrushColor(msg.payload);
+                //     } catch (e) {
+                //       console.log('Error setting brush color:', e);
+                //     }
+                //   }
+                //   break;
+
+                case "resetBrushParams":
+                  if (KL) {
+                    // Reset brush parameters to defaults
+                    prevSize = 4;
+                    prevOpacity = 1;
+                    prevScatter = 0;
+                    newSize = 4;
+                    newOpacity = 1;
+                    newScatter = 0;
+                    
+                    // Reset change tracking variables
+                    size_change = 0;
+                    opacity_change = 0;
+                    scatter_change = 0;
+                    norm_size_change = 0;
+                    norm_opacity_change = 0;
+                    norm_scatter_change = 0;
+                    
+                    // Reset prevPixels to cleared canvas state (all white)
+                    if (prevPixels && prevPixels.length > 0) {
+                      prevPixels = new Uint8ClampedArray(prevPixels.length).fill(255);
                     }
+                    
+                    // Apply the reset values to Klecks
+                    KL.setBrushSize(4);
+                    KL.setBrushOpacity(1);
+                    KL.setBrushScatter(0);
+                    
+                    console.log('Brush parameters reset to defaults');
                   }
                   break;
 
@@ -173,6 +221,13 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                       let ratio_diff_red = curr_ratio['red'] - prev_ratio['red']
                       let ratio_diff_yellow = curr_ratio['yellow'] - prev_ratio['yellow']
                       let ratio_diff_blue = curr_ratio['blue'] - prev_ratio['blue']
+
+                      if (smudgingActive) {
+                        ratio_diff_red = ratio_diff_red * -1
+                        ratio_diff_yellow = ratio_diff_yellow * -1
+                        ratio_diff_blue = ratio_diff_blue * -1
+                      }
+
                       size_change += ratio_diff_red
                       opacity_change += ratio_diff_yellow
                       scatter_change += ratio_diff_blue
@@ -188,9 +243,9 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   //console.log('normalized changes', norm_size_change, norm_opacity_change, norm_scatter_change)
                   //console.log('prevsize opacity scatter', prevSize, prevOpacity, prevScatter)
                   
-                  newSize = (prevSize + norm_size_change);
-                  newOpacity = prevOpacity - norm_opacity_change;
-                  newScatter = prevScatter + norm_scatter_change;
+                  newSize = Math.max(0, prevSize + norm_size_change);
+                  newOpacity = Math.max(0, prevOpacity - norm_opacity_change);
+                  newScatter = Math.max(0, prevScatter + norm_scatter_change);
 
                   //console.log('new params', newSize, newOpacity, newScatter)
 

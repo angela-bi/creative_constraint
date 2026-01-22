@@ -135,7 +135,14 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
           colors={colors}
           activeColor={activeColor}
           setActiveColor={setActiveColor}
-          onBrushModeChange={(mode) => sendMessage("setBrushMode", mode)}
+          onBrushModeChange={(mode) => {
+            sendMessage("setBrushMode", mode);
+            if (mode === "paint") {
+              setSmudgeActive(false);
+              // Broadcast message to other components
+              window.postMessage({ type: "smudgingInactive" }, "*");
+            }
+          }}
         ></Palette>
       </div>
       <div>
