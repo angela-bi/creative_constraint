@@ -16,9 +16,10 @@ type SketchProps = {
   colors: Color[];
   activeColor: Color;
   setActiveColor: React.Dispatch<React.SetStateAction<Color>>;
+  setSmudgeActive: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
-export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, setActiveColor }: SketchProps) {
+export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, setActiveColor, setSmudgeActive }: SketchProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [mounted, setMounted] = useState(false);
   const binInputRef = useRef<HTMLInputElement>(null);
@@ -88,6 +89,10 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
       }
       if (event.data?.type === "canvasPNG") {
         setSavedCanvases(prev => [event.data.payload, ...prev]);
+      }
+      if (event.data?.type === "smudgingActive") {
+        console.log('smudging active');
+        setSmudgeActive(true);
       }
     };
     window.addEventListener("message", handleMessage);

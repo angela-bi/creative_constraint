@@ -72,13 +72,14 @@ function samplePixels() {
   let prevMouseX, prevMouseY;
   let sliderDrops, buttonDry, buttonWet, buttonDefault;
   let colorPicker;
-  let colorPicked = [255, 0, 0];
+  let colorPicked = [266, 0, 168];
   let paint = [];
   let tempPaint1 = [];
   let tempPaint2 = [];
   
   let brushMode = "paint"; // "paint" | "smudge"
   let smudgeStrength = 1; // 0 through 1
+  let isSmudging = false;
   
   let lastSampleTime = 0;
   const sampleInterval = 2000; // bigger = less often, smaller = more often
@@ -128,7 +129,9 @@ function samplePixels() {
         const pngData = document.querySelector("canvas").toDataURL("image/png");
         window.parent.postMessage({ type: "canvasPNG", payload: pngData }, "*");
       }
-      if (type === "setBrushMode") brushMode = payload;
+      if (type === "setBrushMode") {
+        brushMode = payload;
+      }
   
     });
   
@@ -166,6 +169,12 @@ function samplePixels() {
       mouseY >= 0 &&
       mouseY <= height
     ) {
+      // Send smudging active message when actively smudging
+      if (brushMode === "smudge" && !isSmudging) {
+        isSmudging = true;
+        window.parent.postMessage({ type: "smudgingActive", payload: isSmudging }, "*");
+      }
+      
       let distance = dist(prevMouseX, prevMouseY, pointerX, pointerY);
       let numPoints = floor(distance / 1); // larger number = more gaps and fewer points; these two lines from George Profenza, noted below.
       drawLinePoints(prevMouseX, prevMouseY, pointerX, pointerY, numPoints);
@@ -174,6 +183,9 @@ function samplePixels() {
       if (pointerX == prevMouseX && pointerY == prevMouseY) {
         renderPoints(mouseX, mouseY);
       }
+    } else {
+      // Reset smudging flag when not drawing
+      isSmudging = false;
     }
     prevMouseX = pointerX;
     prevMouseY = pointerY;

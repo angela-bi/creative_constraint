@@ -18,6 +18,7 @@ export default function HomePage() {
   const pixelsRef = useRef<Uint8ClampedArray | null>(null);
   const [frameId, setFrameId] = useState(0);
   const [soundLevel, setSoundLevel] = useState<number>(0);
+  const [smudgeActive, setsmudgeActive] = useState<boolean>(false);
 
   const white: Color = {name: 'white', rgb: [255, 255, 255]};
   const black: Color = {name: 'black', rgb: [0, 0, 0]};
@@ -44,6 +45,7 @@ export default function HomePage() {
               colors={colors}
               activeColor={activeColor}
               setActiveColor={setActiveColor}
+              setSmudgeActive={setsmudgeActive}
             />
             {/* <HSLHistograms
               pixelsRef={pixelsRef}
@@ -61,6 +63,7 @@ export default function HomePage() {
             <KlecksDrawing
               pixelsRef={pixelsRef}
               frameId={frameId}
+              smudgeActive={smudgeActive}
               // soundLevel={soundLevel}
             />
           </div>

@@ -4,6 +4,7 @@ import { Color, RGB } from "../page";
 type DrawingProps = {
   pixelsRef: React.RefObject<Uint8ClampedArray | null>;
   frameId: number;
+  smudgeActive: boolean;
   // soundLevel: number;
   //setActiveColor: React.Dispatch<React.SetStateAction<Color>>;
 };
@@ -13,7 +14,7 @@ export type KlecksDrawingRef = {
   setBrushSize: (size: number) => void;
 };
 
-const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, frameId }, ref) => {
+const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, frameId, smudgeActive }, ref) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Expose methods to parent via ref
@@ -52,6 +53,18 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
     if (!iframe?.contentWindow) return;
     iframe.contentWindow.postMessage({ type: "updatePixels", payload: { pixelsRef } }, "*");
   }, [frameId]);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "smudgingActive") {
+        console.log('smudgingActive received in klecksDrawing');
+        // Forward the message to the iframe
+        iframeRef.current?.contentWindow?.postMessage({ type: "smudgingActive" }, "*");
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
 
 
   // Inject Klecks into iframe
@@ -94,6 +107,8 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
             let newOpacity = prevOpacity;
             let newScatter = prevScatter;
 
+            let smudgingActive = false;
+
             let prevPixels = new Uint8ClampedArray(1000).fill(255);
 
             const {solvePaintRatios, rgb2hsl, interpolate, sigmoid, customSigmoid } = window.ColorSplineUtils;
@@ -102,16 +117,21 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
             // central message handler
             function handleMessage(msg) {
               const inst = KL?.instance;
-              const ui = inst.klApp.mobileUi;
-              ui.toolspaceIsOpen = false;
-              // ui.update();
+              if (inst?.klApp?.mobileUi) {
+                const ui = inst.klApp.mobileUi;
+                ui.toolspaceIsOpen = false;
+                // ui.update();
+              }
 
               switch (msg.type) {
 
+                case "smudgingActive":
+                  console.log('smudgingActive received in iframe');
+                  smudgingActive = true;
+                  break;
+
                 case "updatePixels":
                   window.pixels = msg.payload.pixelsRef.current;
-                  console.log('prevPixels', prevPixels);
-                  console.log('pixels', pixels);
 
                   if (!pixels || !prevPixels || pixels.length !== prevPixels.length) {
                     if (pixels && pixels.length > 0) {
@@ -140,6 +160,13 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                       let ratio_diff_red = curr_ratio['red'] - prev_ratio['red']
                       let ratio_diff_yellow = curr_ratio['yellow'] - prev_ratio['yellow']
                       let ratio_diff_blue = curr_ratio['blue'] - prev_ratio['blue']
+
+                      if (smudgingActive) {
+                        ratio_diff_red = ratio_diff_red * -1
+                        ratio_diff_yellow = ratio_diff_yellow * -1
+                        ratio_diff_blue = ratio_diff_blue * -1
+                      }
+
                       size_change += ratio_diff_red
                       opacity_change += ratio_diff_yellow
                       scatter_change += ratio_diff_blue
@@ -157,13 +184,24 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   
                   newSize = (prevSize + norm_size_change);
                   newOpacity = prevOpacity - norm_opacity_change;
-                  newScatter = prevScatter + norm_scatter_change;
+                  newScatter = Math.max(0,prevScatter + norm_scatter_change);
 
                   console.log('new params', newSize, newOpacity, newScatter)
 
                   KL.setBrushSize(newSize) // since klecks doubles the size for some reason
                   KL.setBrushOpacity(newOpacity) // opacity ranges from 0-1, same size
                   KL.setBrushScatter(newScatter); // scatter ranges from 0-1, same size
+
+                  let brush_color = KL.getBrushColor();
+                  console.log('brush color', brush_color)
+                  
+                  // Broadcast brush color change to parent window
+                  if (brush_color) {
+                    window.parent.postMessage({ 
+                      type: "brushColorChanged", 
+                      payload: brush_color 
+                    }, "*");
+                  }
 
                   prevSize = newSize;
                   prevOpacity = newOpacity;

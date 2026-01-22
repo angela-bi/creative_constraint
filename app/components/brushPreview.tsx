@@ -54,6 +54,20 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
     iframe.contentWindow.postMessage({ type: "updatePixels", payload: { pixelsRef } }, "*");
   }, [frameId]);
 
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "brushColorChanged") {
+        // Forward the brush color to the iframe
+        iframeRef.current?.contentWindow?.postMessage({ 
+          type: "setBrushColor", 
+          payload: event.data.payload 
+        }, "*");
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
   // Inject Klecks into iframe
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -111,16 +125,26 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
             // central message handler
             function handleMessage(msg) {
               const inst = KL?.instance;
-              const ui = inst.klApp.mobileUi;
-              ui.toolspaceIsOpen = false;
-              // ui.update();
+              if (inst?.klApp?.mobileUi) {
+                const ui = inst.klApp.mobileUi;
+                ui.toolspaceIsOpen = false;
+                // ui.update();
+              }
 
               switch (msg.type) {
 
+                case "setBrushColor":
+                  if (KL && msg.payload) {
+                    try {
+                      KL.setBrushColor([msg.payload['r'],msg.payload['g'], msg.payload['b']]);
+                    } catch (e) {
+                      console.log('Error setting brush color:', e);
+                    }
+                  }
+                  break;
+
                 case "updatePixels":
                   window.pixels = msg.payload.pixelsRef.current;
-                  console.log('prevPixels', prevPixels);
-                  console.log('pixels', pixels);
 
                   if (!pixels || !prevPixels || pixels.length !== prevPixels.length) {
                     if (pixels && pixels.length > 0) {
@@ -155,20 +179,20 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                     }
                   }
                   
-                  console.log('change', size_change, opacity_change, scatter_change)
+                  //console.log('change', size_change, opacity_change, scatter_change)
                   
                   norm_size_change = size_change / pixels.length * 1000;
                   norm_opacity_change = opacity_change / pixels.length * 100;
                   norm_scatter_change = scatter_change / pixels.length * 500;
                   
-                  console.log('normalized changes', norm_size_change, norm_opacity_change, norm_scatter_change)
-                  console.log('prevsize opacity scatter', prevSize, prevOpacity, prevScatter)
+                  //console.log('normalized changes', norm_size_change, norm_opacity_change, norm_scatter_change)
+                  //console.log('prevsize opacity scatter', prevSize, prevOpacity, prevScatter)
                   
                   newSize = (prevSize + norm_size_change);
                   newOpacity = prevOpacity - norm_opacity_change;
                   newScatter = prevScatter + norm_scatter_change;
 
-                  console.log('new params', newSize, newOpacity, newScatter)
+                  //console.log('new params', newSize, newOpacity, newScatter)
 
                   KL.setBrushSize(newSize) // since klecks doubles the size for some reason
                   KL.setBrushOpacity(newOpacity) // opacity ranges from 0-1, same size
