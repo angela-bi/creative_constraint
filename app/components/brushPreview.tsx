@@ -222,12 +222,12 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                     newScatter = 0;
                     
                     // Reset change tracking variables
-                    size_change = 0;
-                    opacity_change = 0;
-                    scatter_change = 0;
-                    norm_size_change = 0;
-                    norm_opacity_change = 0;
-                    norm_scatter_change = 0;
+                    let size_change = 0;
+                    let opacity_change = 0;
+                    let scatter_change = 0;
+                    let norm_size_change = 0;
+                    let norm_opacity_change = 0;
+                    let norm_scatter_change = 0;
                     
                     // Reset prevPixels to cleared canvas state (all white)
                     if (prevPixels && prevPixels.length > 0) {
@@ -274,9 +274,9 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                       let ratio_diff_blue = curr_ratio['blue'] - prev_ratio['blue']
 
                       if (smudgingActive) {
-                        ratio_diff_red = ratio_diff_red * -1
-                        ratio_diff_yellow = ratio_diff_yellow * -1
-                        ratio_diff_blue = ratio_diff_blue * -1
+                        ratio_diff_red = ratio_diff_red * -1.2
+                        ratio_diff_yellow = ratio_diff_yellow * -1.2
+                        ratio_diff_blue = ratio_diff_blue * -1.2
                       }
 
                       size_change += ratio_diff_red
