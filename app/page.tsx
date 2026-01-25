@@ -52,13 +52,13 @@ export default function HomePage() {
               frameId={frameId}
             ></HSLHistograms> */}
           </div>
-          {/* <div style={{ flex: "0.5"  }}>
+          <div style={{ flex: "0.5"  }}>
             <BrushPreview
               pixelsRef={pixelsRef}
               frameId={frameId}
               // setActiveColor={setActiveColor}
             ></BrushPreview>
-          </div> */}
+          </div>
           <div style={{ flex: "3" }}>
             <KlecksDrawing
               pixelsRef={pixelsRef}

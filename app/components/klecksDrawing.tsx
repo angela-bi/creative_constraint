@@ -175,8 +175,6 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                     KL.setBrushSize(4);
                     KL.setBrushOpacity(1);
                     KL.setBrushScatter(0);
-                    
-                    console.log('reset values in klecksdrawing iframe')
                   }
                   break;
 
@@ -211,7 +209,6 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                       let ratio_diff_yellow = curr_ratio['yellow'] - prev_ratio['yellow']
                       let ratio_diff_blue = curr_ratio['blue'] - prev_ratio['blue']
 
-                      //console.log('smudgingActive', smudgingActive)
                       if (smudgingActive) {
                         ratio_diff_red = ratio_diff_red * -1
                         ratio_diff_yellow = ratio_diff_yellow * -1
@@ -230,7 +227,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   norm_opacity_change = opacity_change / pixels.length * 100;
                   norm_scatter_change = scatter_change / pixels.length * 500;
                   
-                  console.log('normalized changes', norm_size_change, norm_opacity_change, norm_scatter_change)
+                  console.log('normalized changes drawing software', norm_size_change, norm_opacity_change, norm_scatter_change)
                   console.log('prevsize opacity scatter', prevSize, prevOpacity, prevScatter)
                   
                   newSize = (prevSize + norm_size_change);
@@ -300,8 +297,6 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   }
                 ]
               });
-
-              console.log('KL', KL)
             };
             document.head.appendChild(script);
 

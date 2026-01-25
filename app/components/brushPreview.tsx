@@ -126,7 +126,6 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
             let norm_opacity_change = 0;
             let norm_scatter_change = 0;
 
-
             let newSize = prevSize;
             let newOpacity = prevOpacity;
             let newScatter = prevScatter;
@@ -149,15 +148,15 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
 
               switch (msg.type) {
 
-                // case "setBrushColor":
-                //   if (KL && msg.payload) {
-                //     try {
-                //       KL.setBrushColor(msg.payload);
-                //     } catch (e) {
-                //       console.log('Error setting brush color:', e);
-                //     }
-                //   }
-                //   break;
+                case "smudgingActive":
+                  //console.log('smudgingActive received in iframe');
+                  smudgingActive = true;
+                  break;
+
+                case "smudgingInactive":
+                  //console.log('smudgingInactive received in iframe');
+                  smudgingActive = false;
+                  break;
 
                 case "resetBrushParams":
                   if (KL) {
@@ -186,8 +185,6 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                     KL.setBrushSize(4);
                     KL.setBrushOpacity(1);
                     KL.setBrushScatter(0);
-                    
-                    console.log('Brush parameters reset to defaults');
                   }
                   break;
 
@@ -240,7 +237,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   norm_opacity_change = opacity_change / pixels.length * 100;
                   norm_scatter_change = scatter_change / pixels.length * 500;
                   
-                  //console.log('normalized changes', norm_size_change, norm_opacity_change, norm_scatter_change)
+                  //console.log('normalized changes brush preview', norm_size_change, norm_opacity_change, norm_scatter_change)
                   //console.log('prevsize opacity scatter', prevSize, prevOpacity, prevScatter)
                   
                   newSize = Math.max(0, prevSize + norm_size_change);
