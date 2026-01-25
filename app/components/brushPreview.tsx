@@ -54,6 +54,29 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
     iframe.contentWindow.postMessage({ type: "updatePixels", payload: { pixelsRef } }, "*");
   }, [frameId]);
 
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "smudgingActive") {
+        console.log('smudgingActive received in klecksDrawing');
+        // Forward the message to the iframe
+        iframeRef.current?.contentWindow?.postMessage({ type: "smudgingActive" }, "*");
+      }
+      if (event.data?.type === "smudgingInactive") {
+        console.log('smudgingInactive received in klecksDrawing');
+        // Forward the message to the iframe
+        iframeRef.current?.contentWindow?.postMessage({ type: "smudgingInactive" }, "*");
+      }
+      if (event.data?.type === "resetBrushParams") {
+        console.log('resetBrushParams received in klecksDrawing');
+        // Forward the message to the iframe
+        iframeRef.current?.contentWindow?.postMessage({ type: "resetBrushParams" }, "*");
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === "brushColorChanged") {
@@ -268,7 +291,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   norm_opacity_change = opacity_change / pixels.length * 100;
                   norm_scatter_change = scatter_change / pixels.length * 500;
                   
-                  //console.log('normalized changes brush preview', norm_size_change, norm_opacity_change, norm_scatter_change)
+                  console.log('normalized changes brush preview', norm_size_change, norm_opacity_change, norm_scatter_change)
                   //console.log('prevsize opacity scatter', prevSize, prevOpacity, prevScatter)
                   
                   newSize = Math.max(0, prevSize + norm_size_change);

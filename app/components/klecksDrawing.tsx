@@ -14,7 +14,7 @@ export type KlecksDrawingRef = {
   setBrushSize: (size: number) => void;
 };
 
-const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, frameId, smudgeActive }, ref) => {
+const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, frameId }, ref) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Expose methods to parent via ref
