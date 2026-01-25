@@ -121,8 +121,8 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
       <iframe
         ref={iframeRef}
         style={{
-          width: "520px",
-          height: "520px",
+          width: "470px",
+          height: "470px",
           border: "1px solid gray",
           borderRadius: "12px",
           padding: "10px"

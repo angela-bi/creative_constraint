@@ -87,7 +87,7 @@ function samplePixels() {
   function setup() {
     pixelDensity(1);
   
-    let c = createCanvas(500,500);
+    let c = createCanvas(450,450);
   
     background(255);
   
