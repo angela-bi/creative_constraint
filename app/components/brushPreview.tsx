@@ -91,15 +91,6 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
         <meta charset="UTF-8">
         <title>Klecks</title>
         <style>
-          /* Hide the tool sidebar completely */
-          .kl-toolbar {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            width: 0 !important;
-            height: 0 !important;
-            overflow: hidden !important;
-          }
         </style>
       </head>
       <body style="margin:0; overflow:hidden;">
@@ -185,6 +176,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                     KL.setBrushSize(4);
                     KL.setBrushOpacity(1);
                     KL.setBrushScatter(0);
+                    KL.hideToolSpace();
                   }
                   break;
 
@@ -249,6 +241,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   KL.setBrushSize(newSize) // since klecks doubles the size for some reason
                   KL.setBrushOpacity(newOpacity) // opacity ranges from 0-1, same size
                   KL.setBrushScatter(newScatter); // scatter ranges from 0-1, same size
+                  KL.hideToolSpace();
 
                   prevSize = newSize;
                   prevOpacity = newOpacity;
@@ -290,34 +283,6 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
               handleMessage(msg);
             });
 
-            // Function to hide toolbar
-            function hideToolbar() {
-              const toolbar = document.querySelector('.kl-toolbar');
-              if (toolbar) {
-                toolbar.style.display = 'none';
-                toolbar.style.visibility = 'hidden';
-                toolbar.style.opacity = '0';
-                toolbar.style.width = '0';
-                toolbar.style.height = '0';
-                toolbar.style.overflow = 'hidden';
-              }
-            }
-
-            // MutationObserver to hide toolbar as soon as it appears
-            const observer = new MutationObserver(() => {
-              hideToolbar();
-            });
-
-            // Start observing the document body for changes
-            observer.observe(document.body, {
-              childList: true,
-              subtree: true
-            });
-
-            // Also try to hide it immediately and periodically
-            hideToolbar();
-            setInterval(hideToolbar, 100);
-
             // load Klecks script and initialize KL
             const script = document.createElement('script');
             script.src = '${origin}/klecks/embed.js';
@@ -342,20 +307,6 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                 ]
               });
 
-              // Close toolspace on initialization
-              setTimeout(() => {
-                const inst = KL.instance;
-                if (inst?.klApp?.mobileUi) {
-                  inst.klApp.mobileUi.toolspaceIsOpen = false;
-                }
-                hideToolbar();
-              }, 100);
-
-              // Keep hiding it after project opens
-              setTimeout(hideToolbar, 500);
-              setTimeout(hideToolbar, 1000);
-              setTimeout(hideToolbar, 2000);
-
               console.log('KL', KL)
             };
             document.head.appendChild(script);
@@ -369,15 +320,6 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     iframe.src = url;
-
-    const style = document.createElement("style");
-    style.textContent = `
-        /* Hide tool sidebar completely */
-        .kl-toolbar {
-            display: none !important;
-        }
-    `;
-    document.head.appendChild(style);
 
     return () => URL.revokeObjectURL(url);
   }, []);
