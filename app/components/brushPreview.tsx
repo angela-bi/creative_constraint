@@ -91,6 +91,43 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
         <meta charset="UTF-8">
         <title>Klecks</title>
         <style>
+          /* Hide the tool sidebar completely */
+          .kl-toolbar {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            pointer-events: none !important;
+          }
+          .kl-toolspace {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            pointer-events: none !important;
+          }
+          /* Additional selectors for iPad/mobile */
+          .kl-toolbar,
+          .kl-toolspace,
+          [class*="toolbar"],
+          [class*="toolspace"],
+          [class*="kl-toolbar"],
+          [class*="kl-toolspace"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            pointer-events: none !important;
+            position: absolute !important;
+            left: -9999px !important;
+            top: -9999px !important;
+          }
         </style>
       </head>
       <body style="margin:0; overflow:hidden;">
@@ -136,6 +173,8 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                 ui.toolspaceIsOpen = false;
                 // ui.update();
               }
+              // Always try to hide toolbar when handling messages
+              hideToolbar();
 
               switch (msg.type) {
 
@@ -283,6 +322,74 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
               handleMessage(msg);
             });
 
+            // Function to hide toolbar and toolspace
+            function hideToolbar() {
+              // Hide toolbar
+              const toolbar = document.querySelector('.kl-toolbar');
+              if (toolbar) {
+                toolbar.style.display = 'none';
+                toolbar.style.visibility = 'hidden';
+                toolbar.style.opacity = '0';
+                toolbar.style.width = '0';
+                toolbar.style.height = '0';
+                toolbar.style.overflow = 'hidden';
+                toolbar.style.pointerEvents = 'none';
+                toolbar.style.position = 'absolute';
+                toolbar.style.left = '-9999px';
+                toolbar.style.top = '-9999px';
+              }
+              
+              // Hide toolspace
+              const toolspace = document.querySelector('.kl-toolspace');
+              if (toolspace) {
+                toolspace.style.display = 'none';
+                toolspace.style.visibility = 'hidden';
+                toolspace.style.opacity = '0';
+                toolspace.style.width = '0';
+                toolspace.style.height = '0';
+                toolspace.style.overflow = 'hidden';
+                toolspace.style.pointerEvents = 'none';
+                toolspace.style.position = 'absolute';
+                toolspace.style.left = '-9999px';
+                toolspace.style.top = '-9999px';
+              }
+              
+              // Hide any elements with toolbar/toolspace in class name
+              const allToolbars = document.querySelectorAll('[class*="toolbar"], [class*="toolspace"]');
+              allToolbars.forEach(el => {
+                el.style.display = 'none';
+                el.style.visibility = 'hidden';
+                el.style.opacity = '0';
+                el.style.width = '0';
+                el.style.height = '0';
+                el.style.overflow = 'hidden';
+                el.style.pointerEvents = 'none';
+                el.style.position = 'absolute';
+                el.style.left = '-9999px';
+                el.style.top = '-9999px';
+              });
+              
+              // Also close toolspace via KL API if available
+              if (KL?.instance?.klApp?.mobileUi) {
+                KL.instance.klApp.mobileUi.toolspaceIsOpen = false;
+              }
+            }
+
+            // MutationObserver to hide toolbar as soon as it appears
+            const observer = new MutationObserver(() => {
+              hideToolbar();
+            });
+
+            // Start observing the document body for changes
+            observer.observe(document.body, {
+              childList: true,
+              subtree: true
+            });
+
+            // Also try to hide it immediately and periodically (more frequent for iPad)
+            hideToolbar();
+            setInterval(hideToolbar, 50); // More frequent interval for iPad
+
             // load Klecks script and initialize KL
             const script = document.createElement('script');
             script.src = '${origin}/klecks/embed.js';
@@ -306,6 +413,23 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   }
                 ]
               });
+
+              // Close toolspace on initialization
+              setTimeout(() => {
+                const inst = KL.instance;
+                if (inst?.klApp?.mobileUi) {
+                  inst.klApp.mobileUi.toolspaceIsOpen = false;
+                }
+                hideToolbar();
+              }, 50);
+
+              // Keep hiding it after project opens (more frequent for iPad)
+              setTimeout(hideToolbar, 100);
+              setTimeout(hideToolbar, 200);
+              setTimeout(hideToolbar, 500);
+              setTimeout(hideToolbar, 1000);
+              setTimeout(hideToolbar, 2000);
+              setTimeout(hideToolbar, 3000);
 
               console.log('KL', KL)
             };
