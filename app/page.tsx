@@ -36,38 +36,44 @@ export default function HomePage() {
   const [activeColor, setActiveColor] = useState<Color>(pink)
   
   return (
-    <main className="p-6">
-        <div style={{ display: "flex", flexDirection: "row", height: "95vh", width: "100%", gap: '20px'}}>
-          <div style={{ flex: "1" }}>
-            <Sketch
-              pixelsRef={pixelsRef}
-              setFrameId={setFrameId}
-              colors={colors}
-              activeColor={activeColor}
-              setActiveColor={setActiveColor}
-              setSmudgeActive={setsmudgeActive}
-            />
-            {/* <HSLHistograms
-              pixelsRef={pixelsRef}
-              frameId={frameId}
-            ></HSLHistograms> */}
-          </div>
-          <div style={{ flex: "0.5"  }}>
-            <BrushPreview
-              pixelsRef={pixelsRef}
-              frameId={frameId}
-              // setActiveColor={setActiveColor}
-            ></BrushPreview>
-          </div>
-          <div style={{ flex: "3" }}>
-            <KlecksDrawing
-              pixelsRef={pixelsRef}
-              frameId={frameId}
-              smudgeActive={smudgeActive}
-              // soundLevel={soundLevel}
-            />
-          </div>
+    <main style={{ height: "100dvh", overflow: "hidden" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          height: "100%",
+          width: "100%",
+          gap: "20px",
+          padding: "24px", // moved from main
+          boxSizing: "border-box",
+        }}
+      >
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <Sketch
+            pixelsRef={pixelsRef}
+            setFrameId={setFrameId}
+            colors={colors}
+            activeColor={activeColor}
+            setActiveColor={setActiveColor}
+            setSmudgeActive={setsmudgeActive}
+          />
         </div>
+
+        <div style={{ flex: 0.5, minHeight: 0 }}>
+          <BrushPreview
+            pixelsRef={pixelsRef}
+            frameId={frameId}
+          />
+        </div>
+
+        <div style={{ flex: 3, minHeight: 0 }}>
+          <KlecksDrawing
+            pixelsRef={pixelsRef}
+            frameId={frameId}
+            smudgeActive={smudgeActive}
+          />
+        </div>
+      </div>
     </main>
   );
 }

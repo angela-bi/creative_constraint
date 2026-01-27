@@ -287,18 +287,18 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   
                   //console.log('change', size_change, opacity_change, scatter_change)
                   
-                  norm_size_change = size_change / pixels.length * 1000;
-                  norm_opacity_change = opacity_change / pixels.length * 100;
-                  norm_scatter_change = scatter_change / pixels.length * 500;
+                  norm_size_change = size_change / pixels.length * 1200;
+                  norm_opacity_change = opacity_change / pixels.length * 30;
+                  norm_scatter_change = scatter_change / pixels.length * 300;
                   
-                  console.log('normalized changes brush preview', norm_size_change, norm_opacity_change, norm_scatter_change)
+                  //console.log('normalized changes brush preview', norm_size_change, norm_opacity_change, norm_scatter_change)
                   //console.log('prevsize opacity scatter', prevSize, prevOpacity, prevScatter)
                   
                   newSize = Math.max(0, prevSize + norm_size_change);
                   newOpacity = Math.max(0, prevOpacity - norm_opacity_change);
                   newScatter = Math.max(0, prevScatter + norm_scatter_change);
 
-                  //console.log('new params', newSize, newOpacity, newScatter)
+                  console.log('new params preview', newSize, newOpacity, newScatter)
 
                   KL.setBrushSize(newSize) // since klecks doubles the size for some reason
                   KL.setBrushOpacity(newOpacity) // opacity ranges from 0-1, same size
@@ -453,8 +453,6 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
               setTimeout(hideToolbar, 1000);
               setTimeout(hideToolbar, 2000);
               setTimeout(hideToolbar, 3000);
-
-              console.log('KL', KL)
             };
             document.head.appendChild(script);
 
