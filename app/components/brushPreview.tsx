@@ -157,6 +157,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
         <script src="${origin}/utils/bezier-spline.js"></script>
         <script src="${origin}/utils/color-spline-utils.js"></script>
         <script src="${origin}/utils/pixel-utils.js"></script>
+        <script src="${origin}/utils/drawing-software-utils.js"></script>
         <script>
           (function() {
             let KL = null;
@@ -164,29 +165,44 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
             let brushReady = false;
             const pendingMsgs = [];
 
-            // starting brush params
-            let prevSize = 4;
-            let prevOpacity = 1;
-            let prevScatter = 0;
+            const Utils = window.DrawingSoftwareUtils;
+            
+            // Initialize brush state using utility
+            const brushState = Utils.initBrushState();
+            
+            // Use state variables (keeping compatibility with existing code)
+            let prevSize = brushState.prevSize;
+            let prevOpacity = brushState.prevOpacity;
+            let prevScatter = brushState.prevScatter;
+            let newSize = brushState.newSize;
+            let newOpacity = brushState.newOpacity;
+            let newScatter = brushState.newScatter;
+            let smudgingActive = brushState.smudgingActive;
+            let prevPixels = brushState.prevPixels;
 
-            let size_change = 0;
-            let opacity_change = 0;
-            let scatter_change = 0;
-
-            let norm_size_change = 0;
-            let norm_opacity_change = 0;
-            let norm_scatter_change = 0;
-
-            let newSize = prevSize;
-            let newOpacity = prevOpacity;
-            let newScatter = prevScatter;
-
-            let smudgingActive = false;
-
-            let prevPixels = new Uint8ClampedArray(1000).fill(255);
-
-            const {solvePaintRatios, rgb2hsl, interpolate, sigmoid, customSigmoid } = window.ColorSplineUtils;
-            const {indexToXY, getPixel, pixel_is_different} = window.PixelUtils;
+            // Update brushState from local variables (sync helper)
+            function syncBrushState() {
+              brushState.prevSize = prevSize;
+              brushState.prevOpacity = prevOpacity;
+              brushState.prevScatter = prevScatter;
+              brushState.newSize = newSize;
+              brushState.newOpacity = newOpacity;
+              brushState.newScatter = newScatter;
+              brushState.smudgingActive = smudgingActive;
+              brushState.prevPixels = prevPixels;
+            }
+            
+            // Update local variables from brushState (sync helper)
+            function syncFromBrushState() {
+              prevSize = brushState.prevSize;
+              prevOpacity = brushState.prevOpacity;
+              prevScatter = brushState.prevScatter;
+              newSize = brushState.newSize;
+              newOpacity = brushState.newOpacity;
+              newScatter = brushState.newScatter;
+              smudgingActive = brushState.smudgingActive;
+              prevPixels = brushState.prevPixels;
+            }
 
             // central message handler
             function handleMessage(msg) {
@@ -194,140 +210,65 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
               if (inst?.klApp?.mobileUi) {
                 const ui = inst.klApp.mobileUi;
                 ui.toolspaceIsOpen = false;
-                // ui.update();
               }
               // Always try to hide toolbar when handling messages
-              hideToolbar();
+              Utils.hideToolbar(KL);
+              
+              syncBrushState(); // Sync before processing
 
               switch (msg.type) {
-
                 case "smudgingActive":
-                  //console.log('smudgingActive received in iframe');
-                  smudgingActive = true;
+                  brushState.smudgingActive = true;
+                  syncFromBrushState();
                   break;
 
                 case "smudgingInactive":
-                  //console.log('smudgingInactive received in iframe');
-                  smudgingActive = false;
+                  brushState.smudgingActive = false;
+                  syncFromBrushState();
                   break;
 
                 case "resetBrushParams":
+                  Utils.resetBrushParams(brushState, KL);
                   if (KL) {
-                    // Reset brush parameters to defaults
-                    prevSize = 4;
-                    prevOpacity = 1;
-                    prevScatter = 0;
-                    newSize = 4;
-                    newOpacity = 1;
-                    newScatter = 0;
-                    
-                    // Reset change tracking variables
-                    let size_change = 0;
-                    let opacity_change = 0;
-                    let scatter_change = 0;
-                    let norm_size_change = 0;
-                    let norm_opacity_change = 0;
-                    let norm_scatter_change = 0;
-                    
-                    // Reset prevPixels to cleared canvas state (all white)
-                    if (prevPixels && prevPixels.length > 0) {
-                      prevPixels = new Uint8ClampedArray(prevPixels.length).fill(255);
-                    }
-                    
-                    // Apply the reset values to Klecks
-                    KL.setBrushSize(4);
-                    KL.setBrushOpacity(1);
-                    KL.setBrushScatter(0);
                     KL.hideToolSpace();
                   }
+                  syncFromBrushState();
                   break;
 
                 case "updatePixels":
                   window.pixels = msg.payload.pixelsRef.current;
-
-                  if (!pixels || !prevPixels || pixels.length !== prevPixels.length) {
-                    if (pixels && pixels.length > 0) {
-                      prevPixels = new Uint8ClampedArray(pixels);
-                    }
-                    return;
-                  }
-
-                  let size_change = 0;
-                  let opacity_change = 0;
-                  let scatter_change = 0;
-                            
-                  for (let i = 0; i < pixels.length; i += 4) {
-                    const {x,y} = indexToXY(i, 500); // because array is 500x500x4
-
-                    let curr_pixel = getPixel(pixels, 500, x, y);
-                    let prev_pixel = getPixel(prevPixels, 500, x, y);
-
-                    if (pixel_is_different(prev_pixel, curr_pixel)) {
-                      //let location_value = customSigmoid(x,y);
-
-                      let curr_ratio = solvePaintRatios(curr_pixel['r'], curr_pixel['g'], curr_pixel['b'])
-                      let prev_ratio = solvePaintRatios(prev_pixel['r'], prev_pixel['g'], prev_pixel['b'])
-                      //console.log(curr_ratio, prev_ratio)
-
-                      let ratio_diff_red = curr_ratio['red'] - prev_ratio['red']
-                      let ratio_diff_yellow = curr_ratio['yellow'] - prev_ratio['yellow']
-                      let ratio_diff_blue = curr_ratio['blue'] - prev_ratio['blue']
-
-                      if (smudgingActive) {
-                        ratio_diff_red = ratio_diff_red * -1.2
-                        ratio_diff_yellow = ratio_diff_yellow * -1.2
-                        ratio_diff_blue = ratio_diff_blue * -1.2
+                  
+                  Utils.processPixelChanges(window.pixels, brushState, KL, {
+                    normalization: { size: 1200, opacity: 30, scatter: 300 },
+                    smudgeMultiplier: -1.2,
+                    onUpdate: (state) => {
+                      syncFromBrushState();
+                      
+                      // Component-specific: hide toolspace and draw preview path
+                      if (KL) {
+                        KL.hideToolSpace();
+                        
+                        const inst = KL.instance;
+                        const app = inst.klApp;
+                        
+                        const path = [];
+                        const xStart = 200;
+                        const yStart = 0;
+                        let yCurrent = yStart;
+                        
+                        for (let i = 0; i < 11; i++) {
+                          path.push({x: xStart, y: yCurrent});
+                          yCurrent = yCurrent + 100;
+                        }
+                        
+                        KL.clearLayer();
+                        KL.draw(path);
                       }
-
-                      size_change += ratio_diff_red
-                      opacity_change += ratio_diff_yellow
-                      scatter_change += ratio_diff_blue
+                      
+                      console.log('new params preview', newSize, newOpacity, newScatter);
                     }
-                  }
-                  
-                  //console.log('change', size_change, opacity_change, scatter_change)
-                  
-                  norm_size_change = size_change / pixels.length * 1200;
-                  norm_opacity_change = opacity_change / pixels.length * 30;
-                  norm_scatter_change = scatter_change / pixels.length * 300;
-                  
-                  //console.log('normalized changes brush preview', norm_size_change, norm_opacity_change, norm_scatter_change)
-                  //console.log('prevsize opacity scatter', prevSize, prevOpacity, prevScatter)
-                  
-                  newSize = Math.max(0, prevSize + norm_size_change);
-                  newOpacity = Math.max(0, prevOpacity - norm_opacity_change);
-                  newScatter = Math.max(0, prevScatter + norm_scatter_change);
-
-                  console.log('new params preview', newSize, newOpacity, newScatter)
-
-                  KL.setBrushSize(newSize) // since klecks doubles the size for some reason
-                  KL.setBrushOpacity(newOpacity) // opacity ranges from 0-1, same size
-                  KL.setBrushScatter(newScatter); // scatter ranges from 0-1, same size
-                  KL.hideToolSpace();
-
-                  prevSize = newSize;
-                  prevOpacity = newOpacity;
-                  prevScatter = newScatter;
-                  
-                // Copy the array, don't assign a reference!
-                prevPixels = new Uint8ClampedArray(pixels);
-
-                const inst = KL.instance;
-                  const app = inst.klApp;
-
-                  const path = []
-                  const xStart = 200;
-                  const yStart = 0;
-                  let yCurrent = yStart
-                  const yEnd = 1000;
-
-                  for (let i=0; i < 11; i++) {
-                    path.push({x: xStart, y: yCurrent})
-                    yCurrent = yCurrent + 100
-                  }
-
-                  KL.clearLayer();
-                  KL.draw(path);
+                  });
+                  break;
               }
             }
 
@@ -345,73 +286,8 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
               handleMessage(msg);
             });
 
-            // Function to hide toolbar and toolspace
-            function hideToolbar() {
-              // Hide toolbar
-              const toolbar = document.querySelector('.kl-toolbar');
-              if (toolbar) {
-                toolbar.style.display = 'none';
-                toolbar.style.visibility = 'hidden';
-                toolbar.style.opacity = '0';
-                toolbar.style.width = '0';
-                toolbar.style.height = '0';
-                toolbar.style.overflow = 'hidden';
-                toolbar.style.pointerEvents = 'none';
-                toolbar.style.position = 'absolute';
-                toolbar.style.left = '-9999px';
-                toolbar.style.top = '-9999px';
-              }
-              
-              // Hide toolspace
-              const toolspace = document.querySelector('.kl-toolspace');
-              if (toolspace) {
-                toolspace.style.display = 'none';
-                toolspace.style.visibility = 'hidden';
-                toolspace.style.opacity = '0';
-                toolspace.style.width = '0';
-                toolspace.style.height = '0';
-                toolspace.style.overflow = 'hidden';
-                toolspace.style.pointerEvents = 'none';
-                toolspace.style.position = 'absolute';
-                toolspace.style.left = '-9999px';
-                toolspace.style.top = '-9999px';
-              }
-              
-              // Hide any elements with toolbar/toolspace in class name
-              const allToolbars = document.querySelectorAll('[class*="toolbar"], [class*="toolspace"]');
-              allToolbars.forEach(el => {
-                el.style.display = 'none';
-                el.style.visibility = 'hidden';
-                el.style.opacity = '0';
-                el.style.width = '0';
-                el.style.height = '0';
-                el.style.overflow = 'hidden';
-                el.style.pointerEvents = 'none';
-                el.style.position = 'absolute';
-                el.style.left = '-9999px';
-                el.style.top = '-9999px';
-              });
-              
-              // Also close toolspace via KL API if available
-              if (KL?.instance?.klApp?.mobileUi) {
-                KL.instance.klApp.mobileUi.toolspaceIsOpen = false;
-              }
-            }
-
-            // MutationObserver to hide toolbar as soon as it appears
-            const observer = new MutationObserver(() => {
-              hideToolbar();
-            });
-
-            // Start observing the document body for changes
-            observer.observe(document.body, {
-              childList: true,
-              subtree: true
-            });
-
-            // Also try to hide it immediately and periodically (more frequent for iPad)
-            hideToolbar();
-            setInterval(hideToolbar, 50); // More frequent interval for iPad
+            // Setup toolbar hiding using utility
+            Utils.setupToolbarHiding(KL, 50);
 
             // load Klecks script and initialize KL
             const script = document.createElement('script');
@@ -443,16 +319,16 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                 if (inst?.klApp?.mobileUi) {
                   inst.klApp.mobileUi.toolspaceIsOpen = false;
                 }
-                hideToolbar();
+                Utils.hideToolbar(KL);
               }, 50);
 
               // Keep hiding it after project opens (more frequent for iPad)
-              setTimeout(hideToolbar, 100);
-              setTimeout(hideToolbar, 200);
-              setTimeout(hideToolbar, 500);
-              setTimeout(hideToolbar, 1000);
-              setTimeout(hideToolbar, 2000);
-              setTimeout(hideToolbar, 3000);
+              setTimeout(() => Utils.hideToolbar(KL), 100);
+              setTimeout(() => Utils.hideToolbar(KL), 200);
+              setTimeout(() => Utils.hideToolbar(KL), 500);
+              setTimeout(() => Utils.hideToolbar(KL), 1000);
+              setTimeout(() => Utils.hideToolbar(KL), 2000);
+              setTimeout(() => Utils.hideToolbar(KL), 3000);
             };
             document.head.appendChild(script);
 
