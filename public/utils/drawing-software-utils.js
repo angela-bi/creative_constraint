@@ -12,8 +12,8 @@ window.DrawingSoftwareUtils = (function() {
 
   // Normalization multipliers (can be customized per component)
   const DEFAULT_NORMALIZATION = {
-    size: 1200,
-    opacity: 30,
+    size: 1400,
+    opacity: 60,
     scatter: 300
   };
 
@@ -84,17 +84,16 @@ window.DrawingSoftwareUtils = (function() {
       onUpdate = null
     } = options;
 
-    console.log('pixels kl', pixels, KL)
+    //console.log('pixels kl', pixels, KL)
 
     if (!pixels || !state.prevPixels || pixels.length !== state.prevPixels.length) {
-        console.log('true')
     //   if (pixels && pixels.length > 0) {
         state.prevPixels = new Uint8ClampedArray(pixels);
     //   }
     //   return;
     }
 
-    const {solvePaintRatios} = window.ColorSplineUtils;
+    const {solvePaintRatios, softmaxRGB} = window.ColorSplineUtils;
     const {indexToXY, getPixel, pixel_is_different} = window.PixelUtils;
 
     state.size_change = 0;
@@ -110,18 +109,25 @@ window.DrawingSoftwareUtils = (function() {
       if (pixel_is_different(prev_pixel, curr_pixel)) {
         let curr_ratio = solvePaintRatios(curr_pixel['r'], curr_pixel['g'], curr_pixel['b']);
         let prev_ratio = solvePaintRatios(prev_pixel['r'], prev_pixel['g'], prev_pixel['b']);
+        //console.log(curr_pixel)
+        // let curr_ratio = {'red': curr_pixel['r']/255, 'green': curr_pixel['g']/255, 'blue': curr_pixel['b']/255}
+        // let prev_ratio = {'red': prev_pixel['r']/255, 'green': prev_pixel['g']/255, 'blue': prev_pixel['b']/255}
+
+        // let curr_ratio = softmaxRGB(curr_pixel['r'], curr_pixel['g'], curr_pixel['b']);
+        // let prev_ratio = softmaxRGB(prev_pixel['r'], prev_pixel['g'], prev_pixel['b']);
 
         let ratio_diff_red = curr_ratio['red'] - prev_ratio['red'];
         let ratio_diff_yellow = curr_ratio['yellow'] - prev_ratio['yellow'];
+        // let ratio_diff_yellow = curr_ratio['green'] - prev_ratio['green'];
         let ratio_diff_blue = curr_ratio['blue'] - prev_ratio['blue'];
-
-        //console.log('ratio diffs', ratio_diff_red, ratio_diff_yellow, ratio_diff_blue)
 
         if (state.smudgingActive) {
           ratio_diff_red = ratio_diff_red * smudgeMultiplier;
           ratio_diff_yellow = ratio_diff_yellow * smudgeMultiplier;
           ratio_diff_blue = ratio_diff_blue * smudgeMultiplier;
         }
+
+        // console.log('ratio diffs', ratio_diff_red, ratio_diff_yellow, ratio_diff_blue)
 
         state.size_change += ratio_diff_red;
         state.opacity_change += ratio_diff_yellow;
@@ -137,9 +143,9 @@ window.DrawingSoftwareUtils = (function() {
     state.norm_scatter_change = state.scatter_change / pixels.length * normalization.scatter;
 
     // Calculate new values
-    state.newSize = Math.max(0, state.prevSize + state.norm_size_change);
-    state.newOpacity = Math.max(0, state.prevOpacity - state.norm_opacity_change);
-    state.newScatter = Math.max(0, state.prevScatter + state.norm_scatter_change);
+    state.newSize = Math.min(Math.max(0, state.prevSize + state.norm_size_change), 100);
+    state.newOpacity = Math.min(Math.max(0, state.prevOpacity - state.norm_opacity_change), 1);
+    state.newScatter = Math.min(Math.max(0, state.prevScatter + state.norm_scatter_change), 100);
 
     // Apply to Klecks
     if (KL) {

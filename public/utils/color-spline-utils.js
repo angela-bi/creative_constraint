@@ -57,6 +57,20 @@
     }
   }
 
+  function softmax(logits) {
+    //find max in logits using reduce
+    const maxLogit = logits.reduce((a, b) => Math.max(a, b), -Infinity);
+    const scores = logits.map((l) => Math.exp(l - maxLogit));
+    const denom = scores.reduce((a, b) => a + b);
+    return scores.map((s) => s / denom);
+  }
+  // https://gist.github.com/cyphunk/6c255fa05dd30e69f438a930faeb53fe
+
+  function softmaxRGB(R, G, B){
+    let softmax_result = softmax([R, G, B])
+    return {'red': softmax_result[0], 'green': softmax_result[1], 'blue': softmax_result[2]}
+  }
+
 
   function sigmoid(t, k) {
     return 1 / (1 + Math.exp(-t/k));
@@ -130,6 +144,7 @@
 
   window.ColorSplineUtils = {
     solvePaintRatios,
+    softmaxRGB,
     sigmoid,
     customSigmoid,
     rgb2hsl,

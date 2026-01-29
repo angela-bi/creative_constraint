@@ -23,7 +23,7 @@ export default function HomePage() {
   const white: Color = {name: 'white', rgb: [255, 255, 255]};
   const black: Color = {name: 'black', rgb: [0, 0, 0]};
   const pink: Color = {name: 'pink', rgb: [266, 0, 168]};
-  const navy: Color = {name: 'blue', rgb: [104, 115, 159]};
+  const navy: Color = {name: 'blue', rgb: [0, 0, 255]};
   const gray: Color = {name: 'gray', rgb: [210, 210, 210]};
   const red: Color = {name: 'pink', rgb: [255, 0, 0]};
   const green: Color = {name: 'green', rgb: [0, 255, 0]};
