@@ -12,7 +12,6 @@
    * @returns {{r: number, y: number, b: number, w: number}} Ratios summing close to 1
    */
   function solvePaintRatios(R, G, B) {
-    // Clamp input
     R = Math.min(Math.max(R, 0), 255);
     G = Math.min(Math.max(G, 0), 255);
     B = Math.min(Math.max(B, 0), 255);
@@ -51,6 +50,30 @@
     }
 
     return { 'red':r, 'yellow':y, 'blue':b, 'white':w };
+
+    function clamp(val, min, max) {
+      return Math.min(Math.max(val, min), max);
+    }
+  }
+
+  /**
+   * @param {number} R - Red channel (0-255)
+   * @param {number} G - Green channel (0-255)
+   * @param {number} B - Blue channel (0-255)
+   */
+  function solvePaintRatiosRGB(R, G, B) {
+    let r = R / 255
+    let g = G / 255
+    let b = B / 255
+
+    const sum = r + g + b;
+    if (sum > 0) {
+      r /= sum;
+      g /= sum;
+      b /= sum;
+    }
+
+    return { 'red':r, 'green':g, 'blue':b};
 
     function clamp(val, min, max) {
       return Math.min(Math.max(val, min), max);
@@ -144,6 +167,7 @@
 
   window.ColorSplineUtils = {
     solvePaintRatios,
+    solvePaintRatiosRGB,
     softmaxRGB,
     sigmoid,
     customSigmoid,

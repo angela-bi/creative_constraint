@@ -54,6 +54,57 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
     iframe.contentWindow.postMessage({ type: "updatePixels", payload: { pixelsRef } }, "*");
   }, [frameId]);
 
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }  
+
+  function ImportPSDButton({ iframeRef }: { iframeRef: React.RefObject<HTMLIFrameElement> }) {
+    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+  
+      if (!file.name.toLowerCase().endsWith(".psd")) {
+        alert("Please select a PSD file");
+        return;
+      }
+  
+      const reader = new FileReader();
+      reader.onload = () => {
+        iframeRef.current?.contentWindow?.postMessage(
+          {
+            type: "importPSD",
+            buffer: reader.result
+          },
+          "*"
+        );
+      };
+  
+      reader.readAsArrayBuffer(file);
+  
+      // Reset input so same file can be selected again
+      e.target.value = "";
+    };
+  
+    return (
+      <label>
+        Import PSD
+        <input
+          type="file"
+          accept=".psd"
+          onChange={onFileChange}
+          hidden
+        />
+      </label>
+    );
+  }
+  
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === "smudgingActive") {
@@ -70,6 +121,10 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
         console.log('resetBrushParams received in klecksDrawing');
         // Forward the message to the iframe
         iframeRef.current?.contentWindow?.postMessage({ type: "resetBrushParams" }, "*");
+      }
+      if (event.data?.type === "exportPSD") {
+        const { psd, timestamp } = event.data.payload;
+        downloadBlob(psd, `drawing-${timestamp}.psd`);
       }
     };
     window.addEventListener("message", handleMessage);
@@ -169,6 +224,13 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   syncFromBrushState();
                   break;
 
+                case "importPSD": {
+                  const buffer = msg.buffer;
+                  if (!buffer) return;
+                  KL.openPSD(buffer);
+                  break;
+                }
+
                 case "updatePixels":
                   window.pixels = msg.payload.pixelsRef.current;
                   
@@ -222,10 +284,15 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   ]).then(([psd, png]) => {
                     // Download PSD file
                     if (psd) {
-                      console.log('psd', psd)
-                      console.log('PSD data type:', typeof psd, psd);
-                      console.log('PSD constructor:', psd?.constructor?.name);
-                      //downloadFile(psd, 'drawing.psd', 'application/octet-stream');
+                      if (psd) {
+                        window.parent.postMessage({
+                          type: "exportPSD",
+                          payload: {
+                            psd,
+                            timestamp: Date.now()
+                          }
+                        }, "*");
+                      }
                     }
                     
                     // Download PNG file
@@ -258,6 +325,13 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                 layers: [
                   {
                     name: "Background",
+                    isVisible: true,
+                    opacity: 1,
+                    mixModeStr: "source-over",
+                    image: { fill: "#ffffff" }
+                  },
+                  {
+                    name: "Layer 1",
                     isVisible: true,
                     opacity: 1,
                     mixModeStr: "source-over",
@@ -297,11 +371,30 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
   }, []);
 
   return (
-    <iframe
-      ref={iframeRef}
-      sandbox="allow-scripts allow-same-origin"
-      style={{ width: "100%", height: "100%", border: "1px solid gray", borderRadius: "12px" }}
-    />
+    <div>
+      <input
+        type="file"
+        accept=".psd"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = () => {
+            iframeRef.current?.contentWindow?.postMessage(
+              { type: "importPSD", buffer: reader.result },
+              "*"
+            );
+          };
+          reader.readAsArrayBuffer(file);
+        }}
+      />
+      <iframe
+        ref={iframeRef}
+        sandbox="allow-scripts allow-same-origin"
+        style={{ width: "100%", height: "90dvh", border: "1px solid gray", borderRadius: "12px" }}
+      />
+    </div>
   );
 });
 

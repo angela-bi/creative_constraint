@@ -93,7 +93,7 @@ window.DrawingSoftwareUtils = (function() {
     //   return;
     }
 
-    const {solvePaintRatios, softmaxRGB} = window.ColorSplineUtils;
+    const {solvePaintRatios, solvePaintRatiosRGB, softmaxRGB} = window.ColorSplineUtils;
     const {indexToXY, getPixel, pixel_is_different} = window.PixelUtils;
 
     state.size_change = 0;
@@ -112,6 +112,8 @@ window.DrawingSoftwareUtils = (function() {
         //console.log(curr_pixel)
         // let curr_ratio = {'red': curr_pixel['r']/255, 'green': curr_pixel['g']/255, 'blue': curr_pixel['b']/255}
         // let prev_ratio = {'red': prev_pixel['r']/255, 'green': prev_pixel['g']/255, 'blue': prev_pixel['b']/255}
+        // let curr_ratio = solvePaintRatiosRGB(curr_pixel['r'], curr_pixel['g'], curr_pixel['b']);
+        // let prev_ratio = solvePaintRatiosRGB(curr_pixel['r'], curr_pixel['g'], curr_pixel['b'])
 
         // let curr_ratio = softmaxRGB(curr_pixel['r'], curr_pixel['g'], curr_pixel['b']);
         // let prev_ratio = softmaxRGB(prev_pixel['r'], prev_pixel['g'], prev_pixel['b']);
