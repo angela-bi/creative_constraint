@@ -16,6 +16,7 @@ export type KlecksDrawingRef = {
 
 const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, frameId }, ref) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [startupMode, setStartupMode] = React.useState<"idle" | "chosen">("idle");
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
@@ -155,6 +156,8 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
         <script>
           (function() {
             let KL = null;
+            let projectOpened = false;
+            let pendingStartup = null; // { type: "new" } | { type: "psd", buffer }
             let lastBrushSize = 50;
             let brushReady = false;
             const pendingMsgs = [];
@@ -225,9 +228,47 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   break;
 
                 case "importPSD": {
-                  const buffer = msg.buffer;
-                  if (!buffer) return;
-                  KL.openPSD(buffer);
+                  if (projectOpened) return;
+
+                  if (!KL) {
+                    pendingStartup = { type: "psd", buffer: msg.buffer };
+                    return;
+                  }
+
+                  projectOpened = true;
+                  KL.openPSD(msg.buffer);
+                  break;
+                }
+
+                case "createNewProject": {
+                  if (projectOpened) return;
+
+                  if (!KL) {
+                    pendingStartup = { type: "new" };
+                    return;
+                  }
+
+                  projectOpened = true;
+                  KL.openProject({
+                    width: 1000,
+                    height: 1000,
+                    layers: [
+                      {
+                        name: "Background",
+                        isVisible: true,
+                        opacity: 1,
+                        mixModeStr: "source-over",
+                        image: { fill: "#ffffff" }
+                      },
+                      {
+                        name: "Layer 1",
+                        isVisible: true,
+                        opacity: 1,
+                        mixModeStr: "source-over",
+                        image: { fill: "#ffffff" }
+                      }
+                    ]
+                  });
                   break;
                 }
 
@@ -318,27 +359,6 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   });
                 },
               });
-
-              KL.openProject({
-                width: 1000,
-                height: 1000,
-                layers: [
-                  {
-                    name: "Background",
-                    isVisible: true,
-                    opacity: 1,
-                    mixModeStr: "source-over",
-                    image: { fill: "#ffffff" }
-                  },
-                  {
-                    name: "Layer 1",
-                    isVisible: true,
-                    opacity: 1,
-                    mixModeStr: "source-over",
-                    image: { fill: "#ffffff" }
-                  }
-                ]
-              });
             };
             document.head.appendChild(script);
 
@@ -371,31 +391,70 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
   }, []);
 
   return (
-    <div>
-      <input
-        type="file"
-        accept=".psd"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-
-          const reader = new FileReader();
-          reader.onload = () => {
-            iframeRef.current?.contentWindow?.postMessage(
-              { type: "importPSD", buffer: reader.result },
-              "*"
-            );
-          };
-          reader.readAsArrayBuffer(file);
-        }}
-      />
+    <div style={{ position: "relative" }}>
+      {startupMode === "idle" && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 10,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "16px",
+            background: "rgba(255,255,255,0.95)",
+          }}
+        >
+          <button
+            onClick={() => {
+              iframeRef.current?.contentWindow?.postMessage(
+                { type: "createNewProject" },
+                "*"
+              );
+              setStartupMode("chosen");
+            }}
+          >
+            New Project
+          </button>
+  
+          <label>
+            Open PSD
+            <input
+              type="file"
+              accept=".psd"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+  
+                const reader = new FileReader();
+                reader.onload = () => {
+                  iframeRef.current?.contentWindow?.postMessage(
+                    { type: "importPSD", buffer: reader.result },
+                    "*"
+                  );
+                  setStartupMode("chosen");
+                };
+                reader.readAsArrayBuffer(file);
+              }}
+            />
+          </label>
+        </div>
+      )}
+  
       <iframe
         ref={iframeRef}
         sandbox="allow-scripts allow-same-origin"
-        style={{ width: "100%", height: "90dvh", border: "1px solid gray", borderRadius: "12px" }}
+        style={{
+          width: "100%",
+          height: "90dvh",
+          border: "1px solid gray",
+          borderRadius: "12px",
+        }}
       />
     </div>
-  );
+  );  
 });
 
 export default BrushPreview;
