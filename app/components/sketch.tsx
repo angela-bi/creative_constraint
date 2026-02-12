@@ -5,7 +5,7 @@ import { SketchPicker } from 'react-color';
 import { ColorResult } from "react-color";
 import { CirclePicker } from "react-color";
 // import { Ratio } from "./page";
-import { RGB, Color } from "../page";
+import { RGB, Color } from "../session/[participantId]/page";
 import { Palette } from "./palette";
 
 type SketchProps = {
@@ -90,8 +90,32 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
       if (event.data?.type === "canvasPNG") {
         setSavedCanvases(prev => [event.data.payload, ...prev]);
       }
+      // if (event.data?.type === "requestWatercolorSave") {
+      //   const { psd, timestamp } = event.data.payload;
+      //   downloadBlob(psd, `drawing-${timestamp}.psd`);
+      // }
+      if (event.data?.type === "requestWatercolorPNG") {
+        iframeRef.current?.contentWindow?.postMessage(
+          {
+            type: "exportCanvasPNG",
+            payload: event.data.payload
+          },
+          "*"
+        );
+      }
+      
+      if (event.data?.type === "watercolorPNGReady") {
+        const png = event.data.payload;
+      
+        const link = document.createElement("a");
+        link.href = png;
+        link.download = `watercolor-${Date.now()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      
       if (event.data?.type === "smudgingActive") {
-        console.log('smudging active');
         setSmudgeActive(true);
       }
     };

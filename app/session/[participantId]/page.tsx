@@ -2,10 +2,12 @@
 
 import { useEffect, useCallback, useState, useRef } from "react";
 
-import BrushPreview from "./components/brushPreview";
-import KlecksDrawing from "./components/klecksDrawing";
-import Sketch from "./components/sketch";
-import HSLHistograms from "./components/HSLHistograms";
+import BrushPreview from "../../components/brushPreview";
+import KlecksDrawing from "../../components/klecksDrawing";
+import Sketch from "../../components/sketch";
+import HSLHistograms from "../../components/HSLHistograms";
+
+import { useParams } from "next/navigation";
 
 // export type Ratio = [number, number, number]
 

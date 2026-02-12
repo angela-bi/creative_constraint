@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, forwardRef, useImperativeHandle, SetStateAction } from "react";
-import { Color, RGB } from "../page";
+import { Color, RGB } from "../session/[participantId]/page";
 
 type DrawingProps = {
   pixelsRef: React.RefObject<Uint8ClampedArray | null>;

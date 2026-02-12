@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, forwardRef, useImperativeHandle, SetStateAction } from "react";
-import { Color, RGB } from "../page";
+import { Color, RGB } from "../session/[participantId]/page";
 
 type DrawingProps = {
   pixelsRef: React.RefObject<Uint8ClampedArray | null>;
@@ -126,6 +126,22 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
       if (event.data?.type === "exportPSD") {
         const { psd, timestamp } = event.data.payload;
         downloadBlob(psd, `drawing-${timestamp}.psd`);
+        // Request watercolor canvas save so it's added to Sketch's savedCanvases
+        window.postMessage({ type: "requestWatercolorSave" }, "*");
+      }
+      if (event.data?.type === "exportDrawingPNG") {
+        const { png, timestamp } = event.data.payload;
+        downloadBlob(png, `drawing-${timestamp}.png`);
+        // Request watercolor canvas save so it's added to Sketch's savedCanvases
+        window.postMessage({ type: "requestWatercolorSave" }, "*");
+      }
+      if (event.data?.type === "exportCanvas") {
+        const timestamp = event.data.payload;
+      
+        window.postMessage({
+          type: "requestWatercolorPNG",
+          payload: { timestamp }
+        }, "*");
       }
     };
     window.addEventListener("message", handleMessage);
@@ -325,31 +341,33 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   ]).then(([psd, png]) => {
                     // Download PSD file
                     if (psd) {
-                      if (psd) {
-                        window.parent.postMessage({
-                          type: "exportPSD",
-                          payload: {
-                            psd,
-                            timestamp: Date.now()
-                          }
-                        }, "*");
-                      }
+                      window.parent.postMessage({
+                        type: "exportPSD",
+                        payload: {
+                          psd,
+                          timestamp: Date.now()
+                        }
+                      }, "*");
                     }
-                    
+
+                    // ask sketch canvas to download current canvas
+                    window.parent.postMessage({
+                        type: "exportCanvas",
+                        payload: {
+                          timestamp: Date.now()
+                        }
+                    }, "*");
+
+                    console.log('png onsubmit', png)
                     // Download PNG file
                     if (png) {
-                      // PNG might be a data URL or blob, handle both cases
-                      if (typeof png === 'string' && png.startsWith('data:')) {
-                        // It's a data URL, convert to blob
-                        fetch(png)
-                          .then(res => res.blob())
-                          .then(blob => {
-                            //downloadFile(blob, 'drawing.png', 'image/png');
-                          });
-                      } else {
-                        // It's already a blob
-                        //downloadFile(png, 'drawing.png', 'image/png');
-                      }
+                      window.parent.postMessage({
+                        type: "exportDrawingPNG",
+                        payload: {
+                          png,
+                          timestamp: Date.now()
+                        }
+                      }, "*");
                     }
                     
                     success();

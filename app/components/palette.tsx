@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
-import { Color, RGB } from "../page";
+import { Color, RGB } from "../session/[participantId]/page";
 
 export type Input = "sound" | "brightness" | "nothing"
 export type Mapping = {id: number, color: Color, input: Input, image_path: string}

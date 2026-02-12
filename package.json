@@ -13,6 +13,7 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.5",
     "@mui/material": "^7.3.5",
+    "@supabase/supabase-js": "^2.95.3",
     "@xyflow/react": "^12.8.6",
     "ag-charts-react": "^13.0.0",
     "chart.js": "^4.5.1",

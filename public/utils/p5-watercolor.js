@@ -83,7 +83,18 @@ function samplePixels() {
   
   let lastSampleTime = 0;
   const sampleInterval = 2000; // bigger = less often, smaller = more often
-  
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   function setup() {
     pixelDensity(1);
   
@@ -100,12 +111,7 @@ function samplePixels() {
     window.addEventListener("message", (event) => {
       const { type, payload } = event.data;
   
-      if (type === "setBrushSize") {
-        brushSize = payload;
-      }
-      if (type === "setBrushColor") {
-        brushColor = payload.rgb;
-      }
+
       if (type === "clearCanvas") {
         clearCanvas();
       }
@@ -113,6 +119,14 @@ function samplePixels() {
         const png = canvas.toDataURL("image/png");
         window.parent.postMessage({ type: "canvasPNG", payload: png }, "*");
       }
+      if (type === "exportCanvasPNG") {
+        const png = canvas.toDataURL("image/png");
+      
+        window.parent.postMessage({
+          type: "watercolorPNGReady",
+          payload: png
+        }, "*");
+      }      
       if (type === "importPNG") {
         clearCanvas();
         importPNG(payload);
