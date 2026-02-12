@@ -11,6 +11,7 @@ import { Palette } from "./palette";
 type SketchProps = {
   // ratio: Ratio;
   // setPixels: React.Dispatch<React.SetStateAction<Uint8ClampedArray>>;
+  participantId: string
   pixelsRef: React.RefObject<Uint8ClampedArray | null>;
   setFrameId: React.Dispatch<React.SetStateAction<number>>
   colors: Color[];
@@ -19,7 +20,7 @@ type SketchProps = {
   setSmudgeActive: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
-export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, setActiveColor, setSmudgeActive }: SketchProps) {
+export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, setActiveColor, setSmudgeActive, participantId }: SketchProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [mounted, setMounted] = useState(false);
   const binInputRef = useRef<HTMLInputElement>(null);
@@ -28,10 +29,6 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
 
   function sendMessage(type: string, payload?: any) {
     iframeRef.current?.contentWindow?.postMessage({ type, payload }, "*");
-  }
-
-  function savePNG() {
-    sendMessage("savePNG");
   }
 
   function importPNG(e: React.ChangeEvent<HTMLInputElement>) {
@@ -87,13 +84,24 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
         pixelsRef.current = new Uint8ClampedArray(pixels);
         setFrameId(id => id + 1);
       }
-      if (event.data?.type === "canvasPNG") {
-        setSavedCanvases(prev => [event.data.payload, ...prev]);
+      if (event.data?.type === "saveCanvasResponse") {
+        let canvas = event.data.payload
+        // add a canvas to the scrolling bar of canvases
+        setSavedCanvases(prev => [canvas, ...prev]);
+
+        // Post to window so the page (session) can receive it and call the API
+        window.postMessage(
+          {
+            type: "savetoDBwatercolor",
+            payload: {
+              watercolorPNG: canvas,
+              timestamp: Date.now(),
+              participantId: participantId
+            }
+          },
+          "*"
+        );
       }
-      // if (event.data?.type === "requestWatercolorSave") {
-      //   const { psd, timestamp } = event.data.payload;
-      //   downloadBlob(psd, `drawing-${timestamp}.psd`);
-      // }
       if (event.data?.type === "requestWatercolorPNG") {
         iframeRef.current?.contentWindow?.postMessage(
           {
@@ -183,13 +191,8 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "row", gap: '10px'}}>
-        {/* <button onClick={exportBIN} style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}>
-        Export BIN file
-        </button>
-        Export PNG file
-        </button> */}
         <button
-          onClick={() => sendMessage("getPNG")}
+          onClick={() => sendMessage("saveCanvas")}
           style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
         >
           Save Canvas
@@ -201,18 +204,6 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
           Clear Canvas
         </button>
       </div>
-      {/* <input
-        type="file"
-        accept=".bin"
-        ref={binInputRef}
-        onChange={handleBINUpload}
-      />
-      <input
-        type="file"
-        accept=".png"
-        ref={pngInputRef}
-        onChange={importPNG}
-      /> */}
     </div>
   );
 }

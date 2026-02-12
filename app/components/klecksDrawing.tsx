@@ -2,6 +2,7 @@ import React, { useEffect, useRef, forwardRef, useImperativeHandle, SetStateActi
 import { Color, RGB } from "../session/[participantId]/page";
 
 type DrawingProps = {
+  participantId: string
   pixelsRef: React.RefObject<Uint8ClampedArray | null>;
   frameId: number;
   smudgeActive: boolean;
@@ -14,7 +15,7 @@ export type KlecksDrawingRef = {
   setBrushSize: (size: number) => void;
 };
 
-const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, frameId }, ref) => {
+const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, frameId, participantId }, ref) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [startupMode, setStartupMode] = React.useState<"idle" | "chosen">("idle");
 
@@ -128,6 +129,31 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
         downloadBlob(psd, `drawing-${timestamp}.psd`);
         // Request watercolor canvas save so it's added to Sketch's savedCanvases
         window.postMessage({ type: "requestWatercolorSave" }, "*");
+      }
+      if (event.data?.type === "saveCanvas") { // sent from user pressing saveCanvas button
+        iframeRef.current?.contentWindow?.postMessage(
+          // asking for klecks pnd
+          {
+            type: "klecksPNGrequest",
+            payload: {
+              // klecksPNG: canvas,
+              timestamp: Date.now(),
+              participantId: participantId
+            }
+          },
+          "*"
+        );
+      }
+      if (event.data?.type === "klecksPNGresponse") { // response back from klecks
+        const { png, timestamp, participantId } = event.data.payload;
+        window.postMessage({
+          type: "savetoDBklecks",
+          payload: {
+            klecksPNG: png,
+            timestamp: Date.now(),
+            participantId: participantId
+          }
+        }, "*");
       }
       if (event.data?.type === "exportDrawingPNG") {
         const { png, timestamp } = event.data.payload;
@@ -312,6 +338,29 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                     }
                   });
                   break;
+
+                case "klecksPNGrequest": {
+                  const { timestamp, participantId } = event.data.payload;
+
+                  Promise.all([
+                    KL.getPNG()
+                  ]).then(([png]) => {
+                    window.parent.postMessage(
+                      {
+                        type: "klecksPNGresponse",
+                        payload: {
+                          png,
+                          timestamp,
+                          participantId
+                        }
+                      },
+                      "*"
+                    );
+                  });
+
+                  break;
+                }
+
               }
             }
 
@@ -358,7 +407,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                         }
                     }, "*");
 
-                    console.log('png onsubmit', png)
+                    // console.log('png onsubmit', png)
                     // Download PNG file
                     if (png) {
                       window.parent.postMessage({

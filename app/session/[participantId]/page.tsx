@@ -15,6 +15,9 @@ export type RGB = [number, number, number]; // each 0–255
 export type Color = {name: string, rgb: RGB}
 
 export default function HomePage() {
+  const params = useParams();
+const participantId = params?.participantId as string;
+
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const pixelsRef = useRef<Uint8ClampedArray | null>(null);
@@ -36,6 +39,43 @@ export default function HomePage() {
   const colors = [pink, orange, yellow, green, blue, purple];
 
   const [activeColor, setActiveColor] = useState<Color>(pink)
+
+  useEffect(() => {
+    const handler = async (event: MessageEvent) => {
+      if (event.data?.type === "savetoDBwatercolor") {
+        console.log('got savetoDBwatercolor')
+        const { watercolorPNG, timestamp, participantId } = event.data.payload;
+  
+        await fetch("/api/save-drawing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            watercolorPNG,
+            timestamp,
+            participantId
+          }),
+        });
+      }
+  
+      if (event.data?.type === "savetoDBklecks") {
+        console.log('got savetoDBwatercolor')
+        const { klecksPNG, timestamp, participantId } = event.data.payload;
+  
+        await fetch("/api/save-drawing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            klecksPNG,
+            timestamp,
+            participantId
+          }),
+        });
+      }
+    };
+  
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [participantId]);  
   
   return (
     <main style={{ height: "100dvh", overflow: "hidden" }}>
@@ -52,6 +92,7 @@ export default function HomePage() {
       >
         <div style={{ flex: 1, minHeight: 0 }}>
           <Sketch
+            participantId={participantId}
             pixelsRef={pixelsRef}
             setFrameId={setFrameId}
             colors={colors}
@@ -70,6 +111,7 @@ export default function HomePage() {
 
         <div style={{ flex: 3, minHeight: 0 }}>
           <KlecksDrawing
+            participantId={participantId}
             pixelsRef={pixelsRef}
             frameId={frameId}
             smudgeActive={smudgeActive}

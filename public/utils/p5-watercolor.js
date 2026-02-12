@@ -115,10 +115,6 @@ function samplePixels() {
       if (type === "clearCanvas") {
         clearCanvas();
       }
-      if (type === "savePNG") {
-        const png = canvas.toDataURL("image/png");
-        window.parent.postMessage({ type: "canvasPNG", payload: png }, "*");
-      }
       if (type === "exportCanvasPNG") {
         const png = canvas.toDataURL("image/png");
       
@@ -134,14 +130,9 @@ function samplePixels() {
       if (type === "updateColor") {
         colorPicked = [payload.rgb[0], payload.rgb[1], payload.rgb[2]];
       }
-      // if (type === "updateAvg") {
-      //   // const cols = averageColumnColors();
-      //   // console.log('cols', cols)
-      //   // window.parent.postMessage({ type: "updateAvg", payload: cols }, "*");
-      // }
-      if (type === "getPNG") {
+      if (type === "saveCanvas") {
         const pngData = document.querySelector("canvas").toDataURL("image/png");
-        window.parent.postMessage({ type: "canvasPNG", payload: pngData }, "*");
+        window.parent.postMessage({ type: "saveCanvasResponse", payload: pngData }, "*");
       }
       if (type === "setBrushMode") {
         brushMode = payload;
