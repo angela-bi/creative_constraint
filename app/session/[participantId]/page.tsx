@@ -40,42 +40,99 @@ const participantId = params?.participantId as string;
 
   const [activeColor, setActiveColor] = useState<Color>(pink)
 
+  const [pendingSave, setPendingSave] = useState<{
+    watercolorPNG?: string;
+    klecksPNG?: string;
+    timestamp?: string;
+    participantId?: string;
+  }>({});
+
   useEffect(() => {
     const handler = async (event: MessageEvent) => {
       if (event.data?.type === "savetoDBwatercolor") {
-        console.log('got savetoDBwatercolor')
         const { watercolorPNG, timestamp, participantId } = event.data.payload;
   
-        await fetch("/api/save-drawing", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            watercolorPNG,
-            timestamp,
-            participantId
-          }),
-        });
+        setPendingSave(prev => ({
+          ...prev,
+          watercolorPNG,
+          timestamp,
+          participantId
+        }));
       }
   
       if (event.data?.type === "savetoDBklecks") {
-        console.log('got savetoDBwatercolor')
         const { klecksPNG, timestamp, participantId } = event.data.payload;
   
-        await fetch("/api/save-drawing", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            klecksPNG,
-            timestamp,
-            participantId
-          }),
-        });
+        setPendingSave(prev => ({
+          ...prev,
+          klecksPNG,
+          timestamp,
+          participantId
+        }));
       }
     };
   
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, [participantId]);  
+  }, []);  
+
+  useEffect(() => {
+    if (
+      pendingSave.watercolorPNG &&
+      pendingSave.klecksPNG &&
+      pendingSave.timestamp &&
+      pendingSave.participantId
+    ) {
+      const save = async () => {
+        await fetch("/api/save-drawing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(pendingSave),
+        });
+      };
+  
+      save();
+  
+      // Reset so it doesn't re-trigger
+      setPendingSave({});
+    }
+  }, [pendingSave]);
+  
+
+  // useEffect(() => {
+  //   const handler = async (event: MessageEvent) => {
+  //     if (event.data?.type === "savetoDBwatercolor") {
+  //       const { watercolorPNG, timestamp, participantId } = event.data.payload;
+  
+  //       await fetch("/api/save-drawing", {
+  //         method: "POST",
+  //         headers: { "Content-Type": "application/json" },
+  //         body: JSON.stringify({
+  //           watercolorPNG,
+  //           timestamp,
+  //           participantId
+  //         }),
+  //       });
+  //     }
+  
+  //     if (event.data?.type === "savetoDBklecks") {
+  //       const { klecksPNG, timestamp, participantId } = event.data.payload;
+  
+  //       await fetch("/api/save-drawing", {
+  //         method: "POST",
+  //         headers: { "Content-Type": "application/json" },
+  //         body: JSON.stringify({
+  //           klecksPNG,
+  //           timestamp,
+  //           participantId
+  //         }),
+  //       });
+  //     }
+  //   };
+  
+  //   window.addEventListener("message", handler);
+  //   return () => window.removeEventListener("message", handler);
+  // }, [participantId]);  
   
   return (
     <main style={{ height: "100dvh", overflow: "hidden" }}>

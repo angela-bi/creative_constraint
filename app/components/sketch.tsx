@@ -192,7 +192,10 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
       </div>
       <div style={{ display: "flex", flexDirection: "row", gap: '10px'}}>
         <button
-          onClick={() => sendMessage("saveCanvas")}
+          onClick={() => {
+            sendMessage("saveCanvas"); // watercolor iframe
+            window.postMessage({ type: "saveCanvas" }, "*"); // KlecksDrawing
+          }}
           style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
         >
           Save Canvas

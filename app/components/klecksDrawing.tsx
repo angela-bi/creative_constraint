@@ -342,14 +342,21 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                 case "klecksPNGrequest": {
                   const { timestamp, participantId } = event.data.payload;
 
-                  Promise.all([
-                    KL.getPNG()
-                  ]).then(([png]) => {
+                  const blobToDataURL = (blob) => new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                  });
+
+                  KL.getPNG().then(async (png) => {
+                    const dataUrl = png instanceof Blob ? await blobToDataURL(png) : (typeof png === "string" ? png : null);
+                    if (!dataUrl) return;
                     window.parent.postMessage(
                       {
                         type: "klecksPNGresponse",
                         payload: {
-                          png,
+                          png: dataUrl,
                           timestamp,
                           participantId
                         }
