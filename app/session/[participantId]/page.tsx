@@ -18,12 +18,10 @@ export default function HomePage() {
   const params = useParams();
 const participantId = params?.participantId as string;
 
-  const [ws, setWs] = useState<WebSocket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
   const pixelsRef = useRef<Uint8ClampedArray | null>(null);
   const [frameId, setFrameId] = useState(0);
-  const [soundLevel, setSoundLevel] = useState<number>(0);
   const [smudgeActive, setsmudgeActive] = useState<boolean>(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const white: Color = {name: 'white', rgb: [255, 255, 255]};
   const black: Color = {name: 'black', rgb: [0, 0, 0]};
@@ -46,6 +44,21 @@ const participantId = params?.participantId as string;
     timestamp?: string;
     participantId?: string;
   }>({});
+
+  const createSession = async () => {
+    const res = await fetch("/api/create-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        participantId,
+        userAgent: navigator.userAgent,
+        appVersion: "v1",
+      }),
+    });
+  
+    const data = await res.json();
+    setSessionId(data.sessionId);
+  };
 
   useEffect(() => {
     const handler = async (event: MessageEvent) => {
@@ -98,6 +111,26 @@ const participantId = params?.participantId as string;
     }
   }, [pendingSave]);
   
+  const lastActivityRef = useRef(Date.now());
+
+  useEffect(() => {
+    const updateActivity = () => {
+      lastActivityRef.current = Date.now();
+    };
+
+    window.addEventListener("mousemove", updateActivity);
+    window.addEventListener("keydown", updateActivity);
+    window.addEventListener("click", updateActivity);
+    window.addEventListener("touchstart", updateActivity);
+
+    return () => {
+      window.removeEventListener("mousemove", updateActivity);
+      window.removeEventListener("keydown", updateActivity);
+      window.removeEventListener("click", updateActivity);
+      window.removeEventListener("touchstart", updateActivity);
+    };
+  }, []);
+
 
   // useEffect(() => {
   //   const handler = async (event: MessageEvent) => {
