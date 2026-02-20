@@ -16,7 +16,7 @@ export type Color = {name: string, rgb: RGB}
 
 export default function HomePage() {
   const params = useParams();
-const participantId = params?.participantId as string;
+  const participantId = params?.participantId as string;
 
   const pixelsRef = useRef<Uint8ClampedArray | null>(null);
   const [frameId, setFrameId] = useState(0);
@@ -45,6 +45,7 @@ const participantId = params?.participantId as string;
     participantId?: string;
   }>({});
 
+  // CREATE SESSION
   const createSession = async () => {
     const res = await fetch("/api/create-session", {
       method: "POST",
@@ -52,14 +53,30 @@ const participantId = params?.participantId as string;
       body: JSON.stringify({
         participantId,
         userAgent: navigator.userAgent,
-        appVersion: "v1",
+        appVersion: "v1", //change here when a new version deploys
       }),
     });
   
     const data = await res.json();
     setSessionId(data.sessionId);
+
+    console.log('session_started')
+    await fetch("/api/log-event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: data.sessionId,
+        participantId,
+        eventType: "session_started",
+      }),
+    });
   };
 
+  useEffect(() => {
+    createSession();
+  }, []);
+
+  // SAVE CANVAS
   useEffect(() => {
     const handler = async (event: MessageEvent) => {
       if (event.data?.type === "savetoDBwatercolor") {
@@ -96,11 +113,17 @@ const participantId = params?.participantId as string;
       pendingSave.timestamp &&
       pendingSave.participantId
     ) {
+      console.log('canvas_saved')
       const save = async () => {
         await fetch("/api/save-drawing", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(pendingSave),
+        });
+      
+        logEvent("canvas_saved", {
+          timestamp: pendingSave.timestamp,
+          auto: false,
         });
       };
   
@@ -117,12 +140,12 @@ const participantId = params?.participantId as string;
     const updateActivity = () => {
       lastActivityRef.current = Date.now();
     };
-
+  
     window.addEventListener("mousemove", updateActivity);
     window.addEventListener("keydown", updateActivity);
     window.addEventListener("click", updateActivity);
     window.addEventListener("touchstart", updateActivity);
-
+  
     return () => {
       window.removeEventListener("mousemove", updateActivity);
       window.removeEventListener("keydown", updateActivity);
@@ -131,41 +154,70 @@ const participantId = params?.participantId as string;
     };
   }, []);
 
+  const logEvent = (
+    eventType: string,
+    metadata?: Record<string, any>
+  ) => {
+    if (!sessionId) return;
+  
+    fetch("/api/log-event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        participantId,
+        eventType,
+        metadata,
+      }),
+    }).catch(() => {});
+  };
 
-  // useEffect(() => {
-  //   const handler = async (event: MessageEvent) => {
-  //     if (event.data?.type === "savetoDBwatercolor") {
-  //       const { watercolorPNG, timestamp, participantId } = event.data.payload;
+  const TEN_MINUTES = 10 * 60 * 1000;
+  const ONE_MINUTE = 60 * 1000;
+  const TEN_SECONDS = 10 * 1000;
+
+  // CLOSING SESSION AFTER INACTIVITY
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const now = Date.now();
+      // const tenMinutes = 10 * 60 * 1000;
+      // const tenSeconds = 10 * 1000;
   
-  //       await fetch("/api/save-drawing", {
-  //         method: "POST",
-  //         headers: { "Content-Type": "application/json" },
-  //         body: JSON.stringify({
-  //           watercolorPNG,
-  //           timestamp,
-  //           participantId
-  //         }),
-  //       });
-  //     }
+      console.log('end_session')
+      if (sessionId && now - lastActivityRef.current > ONE_MINUTE) {
+        await fetch("/api/end-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        });
+
+        logEvent("session_ended", { reason: "inactivity" });
   
-  //     if (event.data?.type === "savetoDBklecks") {
-  //       const { klecksPNG, timestamp, participantId } = event.data.payload;
+        setSessionId(null);
+      }
+    }, ONE_MINUTE);
   
-  //       await fetch("/api/save-drawing", {
-  //         method: "POST",
-  //         headers: { "Content-Type": "application/json" },
-  //         body: JSON.stringify({
-  //           klecksPNG,
-  //           timestamp,
-  //           participantId
-  //         }),
-  //       });
-  //     }
-  //   };
-  
-  //   window.addEventListener("message", handler);
-  //   return () => window.removeEventListener("message", handler);
-  // }, [participantId]);  
+    return () => clearInterval(interval);
+  }, [sessionId]);
+
+  const FIVE_MINUTES = 5 * 60 * 1000;
+  const HALF_MINUTE = 30 * 1000;
+
+  useEffect(() => {
+    if (!sessionId) return;
+
+    console.log('auto_save_window')
+    const interval = setInterval(() => {
+      const now = Date.now();
+
+      if (now - lastActivityRef.current < HALF_MINUTE) {
+        logEvent("auto_save_window");
+      }
+    }, HALF_MINUTE);
+
+    return () => clearInterval(interval);
+  }, [sessionId]);
+ 
   
   return (
     <main style={{ height: "100dvh", overflow: "hidden" }}>
