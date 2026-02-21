@@ -43,7 +43,12 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
     };
   
     reader.readAsDataURL(file);
-  }  
+  } 
+  
+  function triggerFullSave() {
+    sendMessage("saveCanvas"); // watercolor iframe
+    window.postMessage({ type: "saveCanvas" }, "*"); // KlecksDrawing
+  }
 
   useEffect(() => {
     setMounted(true)
@@ -192,10 +197,7 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
       </div>
       <div style={{ display: "flex", flexDirection: "row", gap: '10px'}}>
         <button
-          onClick={() => {
-            sendMessage("saveCanvas"); // watercolor iframe
-            window.postMessage({ type: "saveCanvas" }, "*"); // KlecksDrawing
-          }}
+          onClick={triggerFullSave}
           style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
         >
           Save Canvas

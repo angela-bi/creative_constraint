@@ -22,6 +22,8 @@ export default function HomePage() {
   const [frameId, setFrameId] = useState(0);
   const [smudgeActive, setsmudgeActive] = useState<boolean>(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const autoSaveRef = useRef(false);
+  const lastSaveRef = useRef(0);
 
   const white: Color = {name: 'white', rgb: [255, 255, 255]};
   const black: Color = {name: 'black', rgb: [0, 0, 0]};
@@ -44,6 +46,16 @@ export default function HomePage() {
     timestamp?: string;
     participantId?: string;
   }>({});
+
+  const triggerFullSave = useCallback(() => {
+    if (!sessionId) return;
+
+    autoSaveRef.current = true;
+    lastSaveRef.current = Date.now();
+
+    // One broadcast: Sketch forwards to watercolor iframe, KlecksDrawing requests Klecks PNG
+    window.postMessage({ type: "saveCanvas" }, "*");
+  }, [sessionId]);
 
   // CREATE SESSION
   const createSession = async () => {
@@ -108,30 +120,41 @@ export default function HomePage() {
 
   useEffect(() => {
     if (
-      pendingSave.watercolorPNG &&
-      pendingSave.klecksPNG &&
-      pendingSave.timestamp &&
-      pendingSave.participantId
+      !pendingSave.watercolorPNG ||
+      !pendingSave.klecksPNG ||
+      !pendingSave.timestamp ||
+      !pendingSave.participantId
     ) {
-      console.log('canvas_saved')
-      const save = async () => {
-        await fetch("/api/save-drawing", {
+      return;
+    }
+
+    const payload = { ...pendingSave };
+    setPendingSave({});
+
+    const save = async () => {
+      try {
+        const res = await fetch("/api/save-drawing", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(pendingSave),
+          body: JSON.stringify(payload),
         });
-      
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          console.error("save-drawing failed:", res.status, err);
+          return;
+        }
         logEvent("canvas_saved", {
-          timestamp: pendingSave.timestamp,
-          auto: false,
+          timestamp: payload.timestamp,
+          auto: autoSaveRef.current,
         });
-      };
-  
-      save();
-  
-      // Reset so it doesn't re-trigger
-      setPendingSave({});
-    }
+      } catch (e) {
+        console.error("save-drawing error:", e);
+      } finally {
+        autoSaveRef.current = false;
+      }
+    };
+
+    save();
   }, [pendingSave]);
   
   const lastActivityRef = useRef(Date.now());
@@ -205,16 +228,19 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!sessionId) return;
-
-    console.log('auto_save_window')
+  
     const interval = setInterval(() => {
       const now = Date.now();
-
-      if (now - lastActivityRef.current < HALF_MINUTE) {
-        logEvent("auto_save_window");
+  
+      const userIsActive = now - lastActivityRef.current < HALF_MINUTE;
+      const enoughTimeSinceLastSave = now - lastSaveRef.current > HALF_MINUTE;
+  
+      if (userIsActive && enoughTimeSinceLastSave) {
+        console.log("Auto-saving...");
+        triggerFullSave();
       }
     }, HALF_MINUTE);
-
+  
     return () => clearInterval(interval);
   }, [sessionId]);
  
