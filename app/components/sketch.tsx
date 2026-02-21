@@ -30,20 +30,6 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
   function sendMessage(type: string, payload?: any) {
     iframeRef.current?.contentWindow?.postMessage({ type, payload }, "*");
   }
-
-  function importPNG(e: React.ChangeEvent<HTMLInputElement>) {
-    // console.log('importPNG called')
-    const file = e.target.files?.[0];
-    if (!file) return;
-  
-    const reader = new FileReader();
-  
-    reader.onload = () => {
-      sendMessage("importPNG", reader.result); // send image data URL string
-    };
-  
-    reader.readAsDataURL(file);
-  } 
   
   function triggerFullSave() {
     sendMessage("saveCanvas"); // watercolor iframe
@@ -203,7 +189,10 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
           Save Canvas
         </button>
         <button
-          onClick={() => sendMessage("clearCanvas")}
+          onClick={() => {
+            sendMessage("clearCanvas");
+            window.postMessage({ type: "canvasCleared" }, "*");
+          }}
           style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
         >
           Clear Canvas

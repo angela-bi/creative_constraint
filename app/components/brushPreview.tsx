@@ -68,7 +68,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
         iframeRef.current?.contentWindow?.postMessage({ type: "smudgingInactive" }, "*");
       }
       if (event.data?.type === "resetBrushParams") {
-        console.log('resetBrushParams received in klecksDrawing');
+        // console.log('resetBrushParams received in klecksDrawing');
         // Forward the message to the iframe
         iframeRef.current?.contentWindow?.postMessage({ type: "resetBrushParams" }, "*");
       }
@@ -92,7 +92,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
         iframeRef.current?.contentWindow?.postMessage({ type: "smudgingActive" }, "*");
       }
       if (event.data?.type === "resetBrushParams") {
-        console.log('resetBrushParams received in brushPreview');
+        // console.log('resetBrushParams received in brushPreview');
         // Forward the message to the iframe
         iframeRef.current?.contentWindow?.postMessage({ type: "resetBrushParams" }, "*");
       }

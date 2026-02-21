@@ -88,12 +88,11 @@ export default function HomePage() {
     createSession();
   }, []);
 
-  // SAVE CANVAS
   useEffect(() => {
     const handler = async (event: MessageEvent) => {
       if (event.data?.type === "savetoDBwatercolor") {
         const { watercolorPNG, timestamp, participantId } = event.data.payload;
-  
+
         setPendingSave(prev => ({
           ...prev,
           watercolorPNG,
@@ -101,10 +100,10 @@ export default function HomePage() {
           participantId
         }));
       }
-  
+
       if (event.data?.type === "savetoDBklecks") {
         const { klecksPNG, timestamp, participantId } = event.data.payload;
-  
+
         setPendingSave(prev => ({
           ...prev,
           klecksPNG,
@@ -112,11 +111,15 @@ export default function HomePage() {
           participantId
         }));
       }
+
+      if (event.data?.type === "canvasCleared") {
+        logEvent("canvas_cleared");
+      }
     };
-  
+
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, []);  
+  }, [sessionId, participantId]);  
 
   useEffect(() => {
     if (
@@ -144,7 +147,6 @@ export default function HomePage() {
           return;
         }
         logEvent("canvas_saved", {
-          timestamp: payload.timestamp,
           auto: autoSaveRef.current,
         });
       } catch (e) {
@@ -192,7 +194,7 @@ export default function HomePage() {
         eventType,
         metadata,
       }),
-    }).catch(() => {});
+    }).catch(() => {console.log('error logging event')});
   };
 
   const TEN_MINUTES = 10 * 60 * 1000;

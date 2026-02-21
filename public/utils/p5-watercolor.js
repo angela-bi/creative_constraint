@@ -449,7 +449,7 @@ function samplePixels() {
     tempPaint2 = paint;
     
     // Broadcast message to reset brush parameters
-    console.log('sending resetBrushParams')
+    // console.log('sending resetBrushParams')
     window.parent.postMessage({ type: "resetBrushParams" }, "*");
   }
   
@@ -461,6 +461,7 @@ function samplePixels() {
   
   function importPNG(dataURL) {
     clearCanvas();
+    // console.log('dataURL', dataURL)
     loadImage(dataURL, (img) => {
       // Draw image into the canvas so we can read its pixels
       image(img, 0, 0, width, height);
@@ -491,10 +492,10 @@ function samplePixels() {
       updatePixels();
       //update();
   
-      // After watercolor is rendered, extract avg column colors
-      const newPixels = getPixels();
+      // After watercolor is rendered, send pixel data (same shape as samplePixels/sendPixels)
+      const result = getPixels();
       window.parent.postMessage(
-        { type: "updatePixels", payload: newPixels },
+        { type: "updatePixels", payload: result.data },
         "*"
       );
     });
