@@ -58,12 +58,12 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === "smudgingActive") {
-        console.log('smudgingActive received in klecksDrawing');
+        //console.log('smudgingActive received in klecksDrawing');
         // Forward the message to the iframe
         iframeRef.current?.contentWindow?.postMessage({ type: "smudgingActive" }, "*");
       }
       if (event.data?.type === "smudgingInactive") {
-        console.log('smudgingInactive received in klecksDrawing');
+        //console.log('smudgingInactive received in klecksDrawing');
         // Forward the message to the iframe
         iframeRef.current?.contentWindow?.postMessage({ type: "smudgingInactive" }, "*");
       }
@@ -87,7 +87,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
         }, "*");
       }
       if (event.data?.type === "smudgingActive") {
-        console.log('smudgingActive received in brushPreview');
+        //console.log('smudgingActive received in brushPreview');
         // Forward the message to the iframe
         iframeRef.current?.contentWindow?.postMessage({ type: "smudgingActive" }, "*");
       }
@@ -265,7 +265,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                         KL.draw(path);
                       }
                       
-                      console.log('new params preview', newSize, newOpacity, newScatter);
+                      //console.log('new params preview', newSize, newOpacity, newScatter);
                     }
                   });
                   break;

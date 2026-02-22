@@ -30,11 +30,6 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
   function sendMessage(type: string, payload?: any) {
     iframeRef.current?.contentWindow?.postMessage({ type, payload }, "*");
   }
-  
-  function triggerFullSave() {
-    sendMessage("saveCanvas"); // watercolor iframe
-    window.postMessage({ type: "saveCanvas" }, "*"); // KlecksDrawing
-  }
 
   useEffect(() => {
     setMounted(true)
@@ -76,18 +71,19 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
         setFrameId(id => id + 1);
       }
       if (event.data?.type === "saveCanvasResponse") {
-        let canvas = event.data.payload
+        let {pngData, saveId, isAuto} = event.data.payload
         // add a canvas to the scrolling bar of canvases
-        setSavedCanvases(prev => [canvas, ...prev]);
+        if (isAuto === false) {
+          setSavedCanvases(prev => [pngData, ...prev]);
+        }
 
         // Post to window so the page (session) can receive it and call the API
         window.postMessage(
           {
             type: "savetoDBwatercolor",
             payload: {
-              watercolorPNG: canvas,
-              timestamp: Date.now(),
-              participantId: participantId
+              watercolorPNG: pngData,
+              saveId
             }
           },
           "*"
@@ -98,6 +94,17 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
           {
             type: "exportCanvasPNG",
             payload: event.data.payload
+          },
+          "*"
+        );
+      }
+
+      if (event.data?.type === "saveCanvas") {
+        const { saveId, isAuto } = event.data?.payload
+        iframeRef.current?.contentWindow?.postMessage(
+          {
+            type: "saveCanvas",
+            payload: {saveId: saveId, isAuto: isAuto}
           },
           "*"
         );
@@ -183,7 +190,9 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
       </div>
       <div style={{ display: "flex", flexDirection: "row", gap: '10px'}}>
         <button
-          onClick={triggerFullSave}
+          onClick={() => {
+            window.postMessage({ type: "manualSaveRequested" }, "*");
+          }}
           style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
         >
           Save Canvas

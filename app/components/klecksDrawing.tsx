@@ -110,12 +110,12 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === "smudgingActive") {
-        console.log('smudgingActive received in klecksDrawing');
+        //console.log('smudgingActive received in klecksDrawing');
         // Forward the message to the iframe
         iframeRef.current?.contentWindow?.postMessage({ type: "smudgingActive" }, "*");
       }
       if (event.data?.type === "smudgingInactive") {
-        console.log('smudgingInactive received in klecksDrawing');
+        //console.log('smudgingInactive received in klecksDrawing');
         // Forward the message to the iframe
         iframeRef.current?.contentWindow?.postMessage({ type: "smudgingInactive" }, "*");
       }
@@ -131,13 +131,15 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
         window.postMessage({ type: "requestWatercolorSave" }, "*");
       }
       if (event.data?.type === "saveCanvas") { // sent from user pressing saveCanvas button
+        const { saveId, isAuto } = event.data?.payload
+
         iframeRef.current?.contentWindow?.postMessage(
           // asking for klecks pnd
           {
             type: "klecksPNGrequest",
             payload: {
               // klecksPNG: canvas,
-              timestamp: Date.now(),
+              saveId: saveId,
               participantId: participantId
             }
           },
@@ -145,13 +147,12 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
         );
       }
       if (event.data?.type === "klecksPNGresponse") { // response back from klecks
-        const { png, timestamp, participantId } = event.data.payload;
+        const { png, saveId } = event.data.payload;
         window.postMessage({
           type: "savetoDBklecks",
           payload: {
             klecksPNG: png,
-            timestamp: Date.now(),
-            participantId: participantId
+            saveId: saveId
           }
         }, "*");
       }
@@ -317,7 +318,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                 case "updatePixels":
                   window.pixels = msg.payload.pixelsRef.current;
                   
-                  console.log('KL inside klecksdrawing', KL)
+                  //console.log('KL inside klecksdrawing', KL)
                   Utils.processPixelChanges(window.pixels, brushState, KL, {
                     normalization: { size: 1200, opacity: 30, scatter: 300 },
                     smudgeMultiplier: -1.2,
@@ -326,8 +327,8 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                       
                       // Component-specific: broadcast brush color
                       let brush_color = KL.getBrushColor();
-                      console.log('brush color', brush_color);
-                      console.log('new params drawing software', newSize, newOpacity, newScatter);
+                      //console.log('brush color', brush_color);
+                      //console.log('new params drawing software', newSize, newOpacity, newScatter);
                       
                       if (brush_color) {
                         window.parent.postMessage({ 
@@ -340,7 +341,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   break;
 
                 case "klecksPNGrequest": {
-                  const { timestamp, participantId } = event.data.payload;
+                  const { saveId, participantId } = msg.payload;
 
                   const blobToDataURL = (blob) => new Promise((resolve, reject) => {
                     const reader = new FileReader();
@@ -357,8 +358,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                         type: "klecksPNGresponse",
                         payload: {
                           png: dataUrl,
-                          timestamp,
-                          participantId
+                          saveId: saveId
                         }
                       },
                       "*"

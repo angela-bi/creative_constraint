@@ -25,6 +25,11 @@ export default function HomePage() {
   const autoSaveRef = useRef(false);
   const lastSaveRef = useRef(0);
 
+  const saveBufferRef = useRef<Record<
+    string,
+    { watercolor?: string; klecks?: string }
+  >>({});
+
   const white: Color = {name: 'white', rgb: [255, 255, 255]};
   const black: Color = {name: 'black', rgb: [0, 0, 0]};
   const pink: Color = {name: 'pink', rgb: [266, 0, 168]};
@@ -37,27 +42,11 @@ export default function HomePage() {
   const yellow: Color = {name: 'yellow', rgb: [255, 255, 0]}
   const purple: Color = {name: 'purple', rgb: [148, 0, 211]}
   const colors = [pink, orange, yellow, green, blue, purple];
-
   const [activeColor, setActiveColor] = useState<Color>(pink)
 
-  const [pendingSave, setPendingSave] = useState<{
-    watercolorPNG?: string;
-    klecksPNG?: string;
-    timestamp?: string;
-    participantId?: string;
-  }>({});
+  // SESSION STUFF
 
-  const triggerFullSave = useCallback(() => {
-    if (!sessionId) return;
-
-    autoSaveRef.current = true;
-    lastSaveRef.current = Date.now();
-
-    // One broadcast: Sketch forwards to watercolor iframe, KlecksDrawing requests Klecks PNG
-    window.postMessage({ type: "saveCanvas" }, "*");
-  }, [sessionId]);
-
-  // CREATE SESSION
+  // create session
   const createSession = async () => {
     const res = await fetch("/api/create-session", {
       method: "POST",
@@ -72,7 +61,7 @@ export default function HomePage() {
     const data = await res.json();
     setSessionId(data.sessionId);
 
-    console.log('session_started')
+    //console.log('session_started')
     await fetch("/api/log-event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -88,76 +77,144 @@ export default function HomePage() {
     createSession();
   }, []);
 
+  const TEN_MINUTES = 10 * 60 * 1000;
+  const ONE_MINUTE = 60 * 1000;
+  const TEN_SECONDS = 10 * 1000;
+
+  const FIVE_MINUTES = 5 * 60 * 1000;
+  const HALF_MINUTE = 30 * 1000;
+
+  // close session after inactivity
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const now = Date.now();
+      // const tenMinutes = 10 * 60 * 1000;
+      // const tenSeconds = 10 * 1000;
+  
+      //console.log('end_session')
+      if (sessionId && now - lastActivityRef.current > ONE_MINUTE) {
+        await fetch("/api/end-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        });
+
+        logEvent("session_ended", { reason: "inactivity" });
+  
+        setSessionId(null);
+      }
+    }, HALF_MINUTE); // how often we check
+  
+    return () => clearInterval(interval);
+  }, [sessionId]);
+
+  // autosave
+  useEffect(() => {
+    if (!sessionId) return;
+  
+    const interval = setInterval(() => {
+      const now = Date.now();
+  
+      const userIsActive = now - lastActivityRef.current < HALF_MINUTE;
+      const enoughTimeSinceLastSave = now - lastSaveRef.current > HALF_MINUTE;
+  
+      if (userIsActive && enoughTimeSinceLastSave) {
+        console.log('autosaving')
+        triggerFullSave(true);
+      }
+    }, HALF_MINUTE);
+  
+    return () => clearInterval(interval);
+  }, [sessionId]);
+
+  // SAVING
+
+  const triggerFullSave = useCallback((isAuto: boolean) => {
+    if (!sessionId) return;
+  
+    const saveId = crypto.randomUUID();
+  
+    autoSaveRef.current = isAuto;
+    lastSaveRef.current = Date.now();
+  
+    saveBufferRef.current[saveId] = {};
+  
+    window.postMessage({
+      type: "saveCanvas",
+      payload: { saveId: saveId, isAuto: isAuto }
+    }, "*");
+    //console.log('savecanvas in page.tsx sent')
+  }, [sessionId]);
+
+  const savePostRequest = async (saveId: string) => {
+    const buffer = saveBufferRef.current[saveId];
+  
+    if (!buffer?.watercolor || !buffer?.klecks) return;
+  
+    try {
+      const res = await fetch("/api/save-drawing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          watercolorPNG: buffer.watercolor,
+          klecksPNG: buffer.klecks,
+          participantId,
+          timestamp: Date.now(),
+        }),
+      });
+  
+      if (!res.ok) {
+        console.error("Save failed");
+        return;
+      }
+  
+      logEvent("canvas_saved", { auto: autoSaveRef.current });
+  
+    } catch (err) {
+      console.error("Save error:", err);
+    } finally {
+      delete saveBufferRef.current[saveId];
+      autoSaveRef.current = false;
+    }
+  };
+
   useEffect(() => {
     const handler = async (event: MessageEvent) => {
       if (event.data?.type === "savetoDBwatercolor") {
-        const { watercolorPNG, timestamp, participantId } = event.data.payload;
-
-        setPendingSave(prev => ({
-          ...prev,
-          watercolorPNG,
-          timestamp,
-          participantId
-        }));
+        const { watercolorPNG, saveId } = event.data.payload;
+      
+        const buffer = saveBufferRef.current[saveId];
+        if (!buffer) return;
+      
+        buffer.watercolor = watercolorPNG;
+      
+        savePostRequest(saveId);
       }
-
+      
       if (event.data?.type === "savetoDBklecks") {
-        const { klecksPNG, timestamp, participantId } = event.data.payload;
-
-        setPendingSave(prev => ({
-          ...prev,
-          klecksPNG,
-          timestamp,
-          participantId
-        }));
+        const { klecksPNG, saveId } = event.data.payload;
+      
+        const buffer = saveBufferRef.current[saveId];
+        if (!buffer) return;
+      
+        buffer.klecks = klecksPNG;
+      
+        savePostRequest(saveId);
       }
 
       if (event.data?.type === "canvasCleared") {
         logEvent("canvas_cleared");
+      }
+
+      if (event.data?.type === "manualSaveRequested") {
+        //console.log('manualsaverequested in page.tsx')
+        triggerFullSave(false);
       }
     };
 
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
   }, [sessionId, participantId]);  
-
-  useEffect(() => {
-    if (
-      !pendingSave.watercolorPNG ||
-      !pendingSave.klecksPNG ||
-      !pendingSave.timestamp ||
-      !pendingSave.participantId
-    ) {
-      return;
-    }
-
-    const payload = { ...pendingSave };
-    setPendingSave({});
-
-    const save = async () => {
-      try {
-        const res = await fetch("/api/save-drawing", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          console.error("save-drawing failed:", res.status, err);
-          return;
-        }
-        logEvent("canvas_saved", {
-          auto: autoSaveRef.current,
-        });
-      } catch (e) {
-        console.error("save-drawing error:", e);
-      } finally {
-        autoSaveRef.current = false;
-      }
-    };
-
-    save();
-  }, [pendingSave]);
   
   const lastActivityRef = useRef(Date.now());
 
@@ -196,56 +253,6 @@ export default function HomePage() {
       }),
     }).catch(() => {console.log('error logging event')});
   };
-
-  const TEN_MINUTES = 10 * 60 * 1000;
-  const ONE_MINUTE = 60 * 1000;
-  const TEN_SECONDS = 10 * 1000;
-
-  // CLOSING SESSION AFTER INACTIVITY
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      const now = Date.now();
-      // const tenMinutes = 10 * 60 * 1000;
-      // const tenSeconds = 10 * 1000;
-  
-      console.log('end_session')
-      if (sessionId && now - lastActivityRef.current > ONE_MINUTE) {
-        await fetch("/api/end-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId }),
-        });
-
-        logEvent("session_ended", { reason: "inactivity" });
-  
-        setSessionId(null);
-      }
-    }, ONE_MINUTE);
-  
-    return () => clearInterval(interval);
-  }, [sessionId]);
-
-  const FIVE_MINUTES = 5 * 60 * 1000;
-  const HALF_MINUTE = 30 * 1000;
-
-  useEffect(() => {
-    if (!sessionId) return;
-  
-    const interval = setInterval(() => {
-      const now = Date.now();
-  
-      const userIsActive = now - lastActivityRef.current < HALF_MINUTE;
-      const enoughTimeSinceLastSave = now - lastSaveRef.current > HALF_MINUTE;
-  
-      if (userIsActive && enoughTimeSinceLastSave) {
-        console.log("Auto-saving...");
-        triggerFullSave();
-      }
-    }, HALF_MINUTE);
-  
-    return () => clearInterval(interval);
-  }, [sessionId]);
- 
   
   return (
     <main style={{ height: "100dvh", overflow: "hidden" }}>
