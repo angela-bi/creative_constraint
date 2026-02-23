@@ -223,6 +223,12 @@ export default function HomePage() {
         
         const savedWatercolor = await res.json();
         // console.log("Saved watercolor record:", savedWatercolor);
+        if (isAuto && savedWatercolor?.id) {
+          logEvent("canvas_autosaved", {
+            canvasId: savedWatercolor.id,
+            signedUrl: savedWatercolor.signedUrl,
+          });
+        }
         window.postMessage({
           type: "watercolorSavedToDB",
           payload: {
