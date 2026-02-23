@@ -35,15 +35,15 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
     iframeRef.current?.contentWindow?.postMessage({ type, payload }, "*");
   }
 
-  useEffect(() => {
-    const fetchWatercolors = async () => {
-      const res = await fetch(`/api/get-watercolors?participantId=${participantId}`);
-      const data = await res.json();
-      setSavedCanvases(data);
-    };
+  // useEffect(() => {
+  //   const fetchWatercolors = async () => {
+  //     const res = await fetch(`/api/save-watercolor?participantId=${participantId}`);
+  //     const data = await res.json();
+  //     setSavedCanvases(data);
+  //   };
   
-    fetchWatercolors();
-  }, [participantId]);
+  //   fetchWatercolors();
+  // }, [participantId]);
 
   useEffect(() => {
     setMounted(true)
@@ -131,13 +131,15 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
 
       if (event.data?.type === "saveCanvas") {
         const { saveId, isAuto } = event.data?.payload
-        iframeRef.current?.contentWindow?.postMessage(
-          {
-            type: "saveCanvas",
-            payload: {saveId: saveId, isAuto: isAuto}
-          },
-          "*"
-        );
+        if (isAuto === false) { // if its NOT automatic aka only save canvas will send a request to iframe for watercolor
+          iframeRef.current?.contentWindow?.postMessage(
+            {
+              type: "saveCanvas",
+              payload: {saveId: saveId, isAuto: isAuto}
+            },
+            "*"
+          );
+        }
       }
       
       if (event.data?.type === "watercolorPNGReady") {
@@ -213,7 +215,7 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
               src={canvas.signedUrl} 
               style={{ height: "100px", borderRadius: "8px", border: "1px solid #ccc" }} 
               onClick={() => {
-                window.postMessage({ type: "canvasSwitched" }, "*");
+                window.postMessage({ type: "canvasSwitched", payload: { canvasId: canvas.id, signedUrl: canvas.signedUrl }  }, "*");
                 sendMessage("importPNG", canvas.signedUrl);
               }}
             />

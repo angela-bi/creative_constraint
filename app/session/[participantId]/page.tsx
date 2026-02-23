@@ -193,10 +193,10 @@ export default function HomePage() {
         }, "*");
       }
   
-      logEvent("canvas_saved", {
-        savedKlecks: !!buffer.klecks,
-        savedWatercolor: !!buffer.watercolor,
-      });
+      // logEvent("canvas_saved", {
+      //   savedKlecks: !!buffer.klecks,
+      //   savedWatercolor: !!buffer.watercolor,
+      // });
   
     } catch (err) {
       console.error("Save error:", err);
@@ -242,8 +242,8 @@ export default function HomePage() {
       }
 
       if (event.data?.type === "canvasSwitched") {
-        logEvent("canvas_switched");
-        // triggerFullSave(true);
+        const { canvasId, signedUrl } = event.data.payload;
+        logEvent("canvas_switched", { canvasId: canvasId, signedUrl: signedUrl });
         triggerFullSave(true);
       }
       if (event.data?.type === "watercolorCheckpointReady") {
@@ -260,8 +260,8 @@ export default function HomePage() {
       }
 
       if (event.data?.type === "saveCanvasButtonPressed") {
-        console.log('savecanvasbuttonpressed')
         triggerFullSave(false);
+        logEvent('save_canvas_button_pressed')
       }
     };
 
