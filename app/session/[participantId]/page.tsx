@@ -116,6 +116,7 @@ export default function HomePage() {
     createSession();
   }, []);
 
+  const TWENTY_MINUTES = 10 * 60 * 1000;
   const TEN_MINUTES = 10 * 60 * 1000;
   const ONE_MINUTE = 60 * 1000;
   const TEN_SECONDS = 10 * 1000;
@@ -130,7 +131,7 @@ export default function HomePage() {
       // const tenMinutes = 10 * 60 * 1000;
       // const tenSeconds = 10 * 1000;
   
-      if (sessionId && now - lastActivityRef.current > TEN_MINUTES) { // has the user done something in the last ____________?
+      if (sessionId && now - lastActivityRef.current > TWENTY_MINUTES) { // has the user done something in the last ____________?
         await fetch("/api/end-session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -153,8 +154,8 @@ export default function HomePage() {
     const interval = setInterval(() => {
       const now = Date.now();
   
-      const userIsActive = now - lastActivityRef.current < TEN_MINUTES; // has the user done something in the last _________?
-      const enoughTimeSinceLastSave = now - lastSaveRef.current > HALF_MINUTE; // has it been __________ since the last save?
+      const userIsActive = now - lastActivityRef.current < TWENTY_MINUTES; // has the user done something in the last _________?
+      const enoughTimeSinceLastSave = now - lastSaveRef.current > TEN_MINUTES; // has it been __________ since the last save?
   
       if (userIsActive && enoughTimeSinceLastSave) {
         console.log('autosaving')
