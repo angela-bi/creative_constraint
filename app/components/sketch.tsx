@@ -26,24 +26,27 @@ type WatercolorRecord = {
   saved_at: string;
 };
 
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, setActiveColor, setSmudgeActive, participantId }: SketchProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const savedCanvasesRef = useRef<WatercolorRecord[]>([]);
   const [mounted, setMounted] = useState(false);
   const [savedCanvases, setSavedCanvases] = useState<WatercolorRecord[]>([]);
+  savedCanvasesRef.current = savedCanvases;
 
   function sendMessage(type: string, payload?: any) {
     iframeRef.current?.contentWindow?.postMessage({ type, payload }, "*");
   }
-
-  // useEffect(() => {
-  //   const fetchWatercolors = async () => {
-  //     const res = await fetch(`/api/save-watercolor?participantId=${participantId}`);
-  //     const data = await res.json();
-  //     setSavedCanvases(data);
-  //   };
-  
-  //   fetchWatercolors();
-  // }, [participantId]);
 
   useEffect(() => {
     setMounted(true)
@@ -86,38 +89,41 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
       }
       if (event.data?.type === "saveCanvasResponse") {
         let { pngData, saveId, isAuto } = event.data.payload;
-      
-        // Only add to UI history for manual saves
-        if (isAuto === false) {
-          // Send PNG to page.tsx for DB save
-          window.postMessage(
-            {
-              type: "savetoDBwatercolor",
-              payload: {
-                watercolorPNG: pngData,
-                saveId
-              }
-            },
-            "*"
-          );
-        } else {
-          // Autosave / switch save: notify page that watercolor is "done"
-          window.postMessage(
-            {
-              type: "watercolorCheckpointReady",
-              payload: { saveId }
-            },
-            "*"
-          );
-        }
+
+        window.postMessage(
+          {
+            type: "savetoDBwatercolor",
+            payload: {
+              watercolorPNG: pngData,
+              saveId: saveId,
+              isAuto: isAuto
+            }
+          },
+          "*"
+        );
       }
       if (event.data?.type === "watercolorSavedToDB") {
-        const newRecord = event.data.payload;
+        const { newRecord, isAuto } = event.data.payload;
       
-        setSavedCanvases(prev => [newRecord, ...prev]);
+        if (!isAuto) {
+          setSavedCanvases(prev => [newRecord, ...prev]);
+        }
       }
       if (event.data?.type === "requestAllWatercolorCanvases") {
-        // console.log('savedCanvases', savedCanvasesRef.current)
+        const list = savedCanvasesRef.current;
+        list.forEach((canvas, i) => {
+          const filename = `watercolor-${canvas.id}-${canvas.saved_at || Date.now()}.png`.replace(/[:/]/g, "-");
+          const delay = i * 150;
+          setTimeout(() => {
+            fetch(canvas.signedUrl)
+              .then((res) => res.blob())
+              .then((blob) => {
+                downloadBlob(blob, filename);
+              })
+              .catch((err) => console.warn("Download failed for canvas", canvas.id, err));
+          }, delay);
+        });
+        console.log('should be downloaded')
       }
       if (event.data?.type === "requestWatercolorPNG") {
         iframeRef.current?.contentWindow?.postMessage(
@@ -131,15 +137,13 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
 
       if (event.data?.type === "saveCanvas") {
         const { saveId, isAuto } = event.data?.payload
-        if (isAuto === false) { // if its NOT automatic aka only save canvas will send a request to iframe for watercolor
-          iframeRef.current?.contentWindow?.postMessage(
-            {
-              type: "saveCanvas",
-              payload: {saveId: saveId, isAuto: isAuto}
-            },
-            "*"
-          );
-        }
+        iframeRef.current?.contentWindow?.postMessage(
+          {
+            type: "saveCanvasIframe",
+            payload: {saveId: saveId, isAuto: isAuto}
+          },
+          "*"
+        );
       }
       
       if (event.data?.type === "watercolorPNGReady") {

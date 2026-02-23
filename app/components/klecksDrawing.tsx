@@ -140,19 +140,21 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
             payload: {
               // klecksPNG: canvas,
               saveId: saveId,
-              participantId: participantId
+              participantId: participantId,
+              isAuto: isAuto
             }
           },
           "*"
         );
       }
       if (event.data?.type === "klecksPNGresponse") { // response back from klecks
-        const { png, saveId } = event.data.payload;
+        const { png, saveId, isAuto } = event.data.payload;
         window.postMessage({
           type: "savetoDBklecks",
           payload: {
             klecksPNG: png,
-            saveId: saveId
+            saveId: saveId,
+            isAuto: isAuto
           }
         }, "*");
       }
@@ -341,7 +343,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   break;
 
                 case "klecksPNGrequest": {
-                  const { saveId, participantId } = msg.payload;
+                  const { saveId, participantId, isAuto } = msg.payload;
 
                   const blobToDataURL = (blob) => new Promise((resolve, reject) => {
                     const reader = new FileReader();
@@ -358,7 +360,8 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                         type: "klecksPNGresponse",
                         payload: {
                           png: dataUrl,
-                          saveId: saveId
+                          saveId: saveId,
+                          isAuto: isAuto
                         }
                       },
                       "*"

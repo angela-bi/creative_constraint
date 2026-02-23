@@ -94,8 +94,7 @@ export default function HomePage() {
       // const tenMinutes = 10 * 60 * 1000;
       // const tenSeconds = 10 * 1000;
   
-      //console.log('end_session')
-      if (sessionId && now - lastActivityRef.current > ONE_MINUTE) {
+      if (sessionId && now - lastActivityRef.current > TEN_MINUTES) {
         await fetch("/api/end-session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -123,6 +122,7 @@ export default function HomePage() {
   
       if (userIsActive && enoughTimeSinceLastSave) {
         console.log('autosaving')
+        logEvent('autosaving')
         triggerFullSave(true);
       }
     }, HALF_MINUTE);
@@ -153,7 +153,7 @@ export default function HomePage() {
     //console.log('savecanvas in page.tsx sent')
   }, [sessionId]);
 
-  const savePostRequest = async (saveId: string) => {
+  const savePostRequest = async (saveId: string, isAuto: boolean) => {
     const buffer = saveBufferRef.current[saveId];
     if (!buffer) return;
   
@@ -189,14 +189,12 @@ export default function HomePage() {
         // console.log("Saved watercolor record:", savedWatercolor);
         window.postMessage({
           type: "watercolorSavedToDB",
-          payload: savedWatercolor
+          payload: {
+            newRecord: savedWatercolor,
+            isAuto
+          }
         }, "*");
       }
-  
-      // logEvent("canvas_saved", {
-      //   savedKlecks: !!buffer.klecks,
-      //   savedWatercolor: !!buffer.watercolor,
-      // });
   
     } catch (err) {
       console.error("Save error:", err);
@@ -208,33 +206,26 @@ export default function HomePage() {
   useEffect(() => {
     const handler = async (event: MessageEvent) => {
       if (event.data?.type === "savetoDBwatercolor") {
-        const { watercolorPNG, saveId } = event.data.payload;
+        const { watercolorPNG, saveId, isAuto } = event.data.payload;
         const buffer = saveBufferRef.current[saveId];
+        // console.log('buffer', buffer)
         if (!buffer) return;
       
         buffer.watercolor = watercolorPNG;
       
         if (buffer.klecks) {
-          savePostRequest(saveId);
+          savePostRequest(saveId, isAuto);
         }
       }
       
       if (event.data?.type === "savetoDBklecks") {
-        const { klecksPNG, saveId } = event.data.payload;
+        const { klecksPNG, saveId, isAuto } = event.data.payload;
         const buffer = saveBufferRef.current[saveId];
         if (!buffer) return;
       
         buffer.klecks = klecksPNG;
       
-        // If manual save → wait for watercolor too
-        if (buffer.saveType === "manual") {
-          if (buffer.watercolor) {
-            savePostRequest(saveId);
-          }
-        } else {
-          // autosave → klecks only
-          savePostRequest(saveId);
-        }
+        savePostRequest(saveId, isAuto)
       }
 
       if (event.data?.type === "canvasCleared") {
@@ -244,20 +235,21 @@ export default function HomePage() {
       if (event.data?.type === "canvasSwitched") {
         const { canvasId, signedUrl } = event.data.payload;
         logEvent("canvas_switched", { canvasId: canvasId, signedUrl: signedUrl });
-        triggerFullSave(true);
+        // triggerFullSave(true);
       }
-      if (event.data?.type === "watercolorCheckpointReady") {
-        const { saveId } = event.data.payload;
+
+      // if (event.data?.type === "watercolorCheckpointReady") {
+      //   const { saveId } = event.data.payload;
       
-        const buffer = saveBufferRef.current[saveId];
-        if (!buffer) return;
+      //   const buffer = saveBufferRef.current[saveId];
+      //   if (!buffer) return;
       
-        buffer.watercolor = "CHECKPOINT"; // placeholder
+      //   buffer.watercolor = "CHECKPOINT"; // placeholder
       
-        if (buffer.watercolor && buffer.klecks) {
-          savePostRequest(saveId);
-        }
-      }
+      //   if (buffer.watercolor && buffer.klecks) {
+      //     savePostRequest(saveId);
+      //   }
+      // }
 
       if (event.data?.type === "saveCanvasButtonPressed") {
         triggerFullSave(false);

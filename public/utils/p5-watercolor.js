@@ -130,11 +130,10 @@ function samplePixels() {
       if (type === "updateColor") {
         colorPicked = [payload.rgb[0], payload.rgb[1], payload.rgb[2]];
       }
-      if (type === "saveCanvas") {
+      if (type === "saveCanvasIframe") {
         const { saveId, isAuto } = event.data?.payload
-        //console.log('saveId', saveId)
         const pngData = document.querySelector("canvas").toDataURL("image/png");
-        window.parent.postMessage({ type: "saveCanvasResponse", payload: {pngData: pngData, saveId: saveId, isAuto: isAuto} }, "*");
+        window.parent.postMessage({ type: "saveCanvasResponse", payload: {pngData: pngData, saveId: saveId, isAuto} }, "*");
         //console.log('savecanvasresponse sent from p5watercolor')
       }
       if (type === "setBrushMode") {
