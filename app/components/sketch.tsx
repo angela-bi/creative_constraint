@@ -20,16 +20,30 @@ type SketchProps = {
   setSmudgeActive: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
+type WatercolorRecord = {
+  id: number;
+  signedUrl: string;
+  saved_at: string;
+};
+
 export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, setActiveColor, setSmudgeActive, participantId }: SketchProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [mounted, setMounted] = useState(false);
-  const binInputRef = useRef<HTMLInputElement>(null);
-  const pngInputRef = useRef<HTMLInputElement>(null);
-  const [savedCanvases, setSavedCanvases] = useState<string[]>([]);
+  const [savedCanvases, setSavedCanvases] = useState<WatercolorRecord[]>([]);
 
   function sendMessage(type: string, payload?: any) {
     iframeRef.current?.contentWindow?.postMessage({ type, payload }, "*");
   }
+
+  useEffect(() => {
+    const fetchWatercolors = async () => {
+      const res = await fetch(`/api/get-watercolors?participantId=${participantId}`);
+      const data = await res.json();
+      setSavedCanvases(data);
+    };
+  
+    fetchWatercolors();
+  }, [participantId]);
 
   useEffect(() => {
     setMounted(true)
@@ -71,23 +85,39 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
         setFrameId(id => id + 1);
       }
       if (event.data?.type === "saveCanvasResponse") {
-        let {pngData, saveId, isAuto} = event.data.payload
-        // add a canvas to the scrolling bar of canvases
+        let { pngData, saveId, isAuto } = event.data.payload;
+      
+        // Only add to UI history for manual saves
         if (isAuto === false) {
-          setSavedCanvases(prev => [pngData, ...prev]);
+          // Send PNG to page.tsx for DB save
+          window.postMessage(
+            {
+              type: "savetoDBwatercolor",
+              payload: {
+                watercolorPNG: pngData,
+                saveId
+              }
+            },
+            "*"
+          );
+        } else {
+          // Autosave / switch save: notify page that watercolor is "done"
+          window.postMessage(
+            {
+              type: "watercolorCheckpointReady",
+              payload: { saveId }
+            },
+            "*"
+          );
         }
-
-        // Post to window so the page (session) can receive it and call the API
-        window.postMessage(
-          {
-            type: "savetoDBwatercolor",
-            payload: {
-              watercolorPNG: pngData,
-              saveId
-            }
-          },
-          "*"
-        );
+      }
+      if (event.data?.type === "watercolorSavedToDB") {
+        const newRecord = event.data.payload;
+      
+        setSavedCanvases(prev => [newRecord, ...prev]);
+      }
+      if (event.data?.type === "requestAllWatercolorCanvases") {
+        // console.log('savedCanvases', savedCanvasesRef.current)
       }
       if (event.data?.type === "requestWatercolorPNG") {
         iframeRef.current?.contentWindow?.postMessage(
@@ -129,7 +159,6 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
     return () => window.removeEventListener("message", handleMessage);
 
   }, []);
-
 
   useEffect(() => {
     if (!iframeRef.current?.contentWindow) return;
@@ -178,12 +207,15 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
       <div>
         Previous versions
         <div style={{ overflowX: "auto", display: "flex", gap: "10px", padding: "10px" }}>
-          {savedCanvases.map((src, i) => (
+          {savedCanvases.map((canvas) => (
             <img 
-              key={i} 
-              src={src} 
+              key={canvas.id} 
+              src={canvas.signedUrl} 
               style={{ height: "100px", borderRadius: "8px", border: "1px solid #ccc" }} 
-              onClick={() => sendMessage("importPNG", src)}
+              onClick={() => {
+                window.postMessage({ type: "canvasSwitched" }, "*");
+                sendMessage("importPNG", canvas.signedUrl);
+              }}
             />
           ))}
         </div>
@@ -191,7 +223,7 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
       <div style={{ display: "flex", flexDirection: "row", gap: '10px'}}>
         <button
           onClick={() => {
-            window.postMessage({ type: "manualSaveRequested" }, "*");
+            window.postMessage({ type: "saveCanvasButtonPressed" }, "*");
           }}
           style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
         >

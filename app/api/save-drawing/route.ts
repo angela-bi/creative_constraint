@@ -57,21 +57,27 @@ export async function POST(req: Request) {
     }
 
     // Insert DB row
-    const { error: insertError } = await supabaseAdmin
+    const { data, error: insertError } = await supabaseAdmin
       .from("drawings")
       .insert({
         participant_id: participantId,
+        session_id: body.sessionId,
         saved_at: new Date(Number(timestamp)).toISOString(),
         watercolor_path: watercolorPath,
         klecks_path: klecksPath,
-      });
+      })
+      .select()
+      .single();
 
     if (insertError) {
       console.error("Insert error:", insertError);
       return NextResponse.json({ error: insertError }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      drawing: data, // all drawing data
+    });
   } catch (err) {
     console.error("Server error:", err);
     return NextResponse.json(

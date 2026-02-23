@@ -132,7 +132,7 @@ function samplePixels() {
       }
       if (type === "saveCanvas") {
         const { saveId, isAuto } = event.data?.payload
-        console.log('saveId', saveId)
+        //console.log('saveId', saveId)
         const pngData = document.querySelector("canvas").toDataURL("image/png");
         window.parent.postMessage({ type: "saveCanvasResponse", payload: {pngData: pngData, saveId: saveId, isAuto: isAuto} }, "*");
         //console.log('savecanvasresponse sent from p5watercolor')

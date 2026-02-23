@@ -27,7 +27,10 @@ export default function HomePage() {
 
   const saveBufferRef = useRef<Record<
     string,
-    { watercolor?: string; klecks?: string }
+    { saveType: "manual" | "auto" | "switch",
+      timestamp: number,
+      klecks?: string,
+      watercolor?: string }
   >>({});
 
   const white: Color = {name: 'white', rgb: [255, 255, 255]};
@@ -133,11 +136,15 @@ export default function HomePage() {
     if (!sessionId) return;
   
     const saveId = crypto.randomUUID();
+    const timestamp = Date.now();
   
     autoSaveRef.current = isAuto;
     lastSaveRef.current = Date.now();
   
-    saveBufferRef.current[saveId] = {};
+    saveBufferRef.current[saveId] = {
+      saveType: isAuto ? "auto" : "manual",
+      timestamp,
+    };
   
     window.postMessage({
       type: "saveCanvas",
@@ -148,33 +155,53 @@ export default function HomePage() {
 
   const savePostRequest = async (saveId: string) => {
     const buffer = saveBufferRef.current[saveId];
+    if (!buffer) return;
   
-    if (!buffer?.watercolor || !buffer?.klecks) return;
+    const timestamp = Date.now();
   
     try {
-      const res = await fetch("/api/save-drawing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          watercolorPNG: buffer.watercolor,
-          klecksPNG: buffer.klecks,
-          participantId,
-          timestamp: Date.now(),
-        }),
-      });
-  
-      if (!res.ok) {
-        console.error("Save failed");
-        return;
+      if (buffer.klecks) {
+        await fetch("/api/save-klecks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            klecksPNG: buffer.klecks,
+            participantId,
+            sessionId,
+            timestamp,
+          }),
+        });
       }
   
-      logEvent("canvas_saved", { auto: autoSaveRef.current });
+      if (buffer.watercolor) {
+        const res = await fetch("/api/save-watercolor", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            watercolorPNG: buffer.watercolor,
+            participantId,
+            sessionId,
+            timestamp,
+          }),
+        });
+        
+        const savedWatercolor = await res.json();
+        // console.log("Saved watercolor record:", savedWatercolor);
+        window.postMessage({
+          type: "watercolorSavedToDB",
+          payload: savedWatercolor
+        }, "*");
+      }
+  
+      logEvent("canvas_saved", {
+        savedKlecks: !!buffer.klecks,
+        savedWatercolor: !!buffer.watercolor,
+      });
   
     } catch (err) {
       console.error("Save error:", err);
     } finally {
       delete saveBufferRef.current[saveId];
-      autoSaveRef.current = false;
     }
   };
 
@@ -182,32 +209,58 @@ export default function HomePage() {
     const handler = async (event: MessageEvent) => {
       if (event.data?.type === "savetoDBwatercolor") {
         const { watercolorPNG, saveId } = event.data.payload;
-      
         const buffer = saveBufferRef.current[saveId];
         if (!buffer) return;
       
         buffer.watercolor = watercolorPNG;
       
-        savePostRequest(saveId);
+        if (buffer.klecks) {
+          savePostRequest(saveId);
+        }
       }
       
       if (event.data?.type === "savetoDBklecks") {
         const { klecksPNG, saveId } = event.data.payload;
-      
         const buffer = saveBufferRef.current[saveId];
         if (!buffer) return;
       
         buffer.klecks = klecksPNG;
       
-        savePostRequest(saveId);
+        // If manual save → wait for watercolor too
+        if (buffer.saveType === "manual") {
+          if (buffer.watercolor) {
+            savePostRequest(saveId);
+          }
+        } else {
+          // autosave → klecks only
+          savePostRequest(saveId);
+        }
       }
 
       if (event.data?.type === "canvasCleared") {
         logEvent("canvas_cleared");
       }
 
-      if (event.data?.type === "manualSaveRequested") {
-        //console.log('manualsaverequested in page.tsx')
+      if (event.data?.type === "canvasSwitched") {
+        logEvent("canvas_switched");
+        // triggerFullSave(true);
+        triggerFullSave(true);
+      }
+      if (event.data?.type === "watercolorCheckpointReady") {
+        const { saveId } = event.data.payload;
+      
+        const buffer = saveBufferRef.current[saveId];
+        if (!buffer) return;
+      
+        buffer.watercolor = "CHECKPOINT"; // placeholder
+      
+        if (buffer.watercolor && buffer.klecks) {
+          savePostRequest(saveId);
+        }
+      }
+
+      if (event.data?.type === "saveCanvasButtonPressed") {
+        console.log('savecanvasbuttonpressed')
         triggerFullSave(false);
       }
     };

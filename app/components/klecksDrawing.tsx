@@ -65,7 +65,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-  }  
+  }
 
   function ImportPSDButton({ iframeRef }: { iframeRef: React.RefObject<HTMLIFrameElement> }) {
     const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -408,10 +408,10 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
 
                     // ask sketch canvas to download current canvas
                     window.parent.postMessage({
-                        type: "exportCanvas",
-                        payload: {
-                          timestamp: Date.now()
-                        }
+                        type: "requestAllWatercolorCanvases",
+                        // payload: {
+                        //   timestamp: Date.now()
+                        // }
                     }, "*");
 
                     // console.log('png onsubmit', png)
