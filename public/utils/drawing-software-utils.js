@@ -13,7 +13,7 @@ window.DrawingSoftwareUtils = (function() {
   // Normalization multipliers (can be customized per component)
   const DEFAULT_NORMALIZATION = {
     size: 1400,
-    opacity: 60,
+    opacity: 200,
     scatter: 300
   };
 
