@@ -17,6 +17,7 @@
     "@xyflow/react": "^12.8.6",
     "ag-charts-react": "^13.0.0",
     "chart.js": "^4.5.1",
+    "jszip": "^3.10.1",
     "next": "^16.0.7",
     "paper": "^0.12.18",
     "paper-jsdom": "^0.12.18",

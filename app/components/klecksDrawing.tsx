@@ -394,45 +394,35 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
             script.onload = () => {
               KL = new Klecks({
                 onSubmit: (success) => {
+                  const zipRequestId = "zip-" + Date.now();
                   Promise.all([
                     KL.getPSD(),
                     KL.getPNG()
-                  ]).then(([psd, png]) => {
-                    // Download PSD file
+                  ]).then(async ([psd, png]) => {
                     if (psd) {
-                      window.parent.postMessage({
-                        type: "exportPSD",
-                        payload: {
-                          psd,
-                          timestamp: Date.now()
-                        }
-                      }, "*");
+                      const psdAb = await (psd instanceof Blob ? psd.arrayBuffer() : psd);
+                      window.parent.postMessage(
+                        { type: "zipPsd", zipRequestId, buffer: psdAb },
+                        "*",
+                        [psdAb]
+                      );
                     }
-
-                    // ask sketch canvas to download current canvas
-                    window.parent.postMessage({
-                        type: "requestAllWatercolorCanvases",
-                        // payload: {
-                        //   timestamp: Date.now()
-                        // }
-                    }, "*");
-
-                    // console.log('png onsubmit', png)
-                    // Download PNG file
                     if (png) {
-                      window.parent.postMessage({
-                        type: "exportDrawingPNG",
-                        payload: {
-                          png,
-                          timestamp: Date.now()
-                        }
-                      }, "*");
+                      const pngAb = await (png instanceof Blob ? png.arrayBuffer() : png);
+                      window.parent.postMessage(
+                        { type: "zipKlecksPng", zipRequestId, buffer: pngAb },
+                        "*",
+                        [pngAb]
+                      );
                     }
-                    
+                    window.parent.postMessage(
+                      { type: "requestZipWatercolors", zipRequestId },
+                      "*"
+                    );
                     success();
                   }).catch(error => {
-                    console.error('Error getting files:', error);
-                    success(); // Still call success to close the dialog
+                    console.error("Error getting files:", error);
+                    success();
                   });
                 },
               });

@@ -123,7 +123,27 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
               .catch((err) => console.warn("Download failed for canvas", canvas.id, err));
           }, delay);
         });
-        console.log('should be downloaded')
+      }
+      if (event.data?.type === "requestZipWatercolors") {
+        const zipRequestId = event.data.zipRequestId;
+        if (!zipRequestId) return;
+        const list = savedCanvasesRef.current;
+        window.postMessage(
+          { type: "watercolorZipCount", zipRequestId, count: list.length },
+          "*"
+        );
+        list.forEach((canvas, index) => {
+          fetch(canvas.signedUrl)
+            .then((res) => res.arrayBuffer())
+            .then((buffer) => {
+              window.postMessage(
+                { type: "watercolorZipBlob", zipRequestId, index, buffer },
+                "*",
+                [buffer]
+              );
+            })
+            .catch((err) => console.warn("Zip watercolor fetch failed", canvas.id, err));
+        });
       }
       if (event.data?.type === "requestWatercolorPNG") {
         iframeRef.current?.contentWindow?.postMessage(

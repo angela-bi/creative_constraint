@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useState, useRef } from "react";
+import JSZip from "jszip";
 
 import BrushPreview from "../../components/brushPreview";
 import KlecksDrawing from "../../components/klecksDrawing";
@@ -32,6 +33,41 @@ export default function HomePage() {
       klecks?: string,
       watercolor?: string }
   >>({});
+
+  type ZipPending = {
+    psd: ArrayBuffer | null;
+    klecksPng: ArrayBuffer | null;
+    watercolorCount: number | null;
+    watercolors: Record<number, ArrayBuffer>;
+  };
+  const pendingZipRef = useRef<Record<string, ZipPending>>({});
+
+  const tryBuildZip = useCallback(async (zipRequestId: string) => {
+    const p = pendingZipRef.current[zipRequestId];
+    if (!p) return;
+    const { psd, klecksPng, watercolorCount, watercolors } = p;
+    if (!psd || !klecksPng || watercolorCount === null) return;
+    const received = Object.keys(watercolors).length;
+    if (received !== watercolorCount) return;
+
+    delete pendingZipRef.current[zipRequestId];
+    const zip = new JSZip();
+    zip.file("klecks.psd", psd);
+    zip.file("klecks.png", klecksPng);
+    for (let i = 0; i < watercolorCount; i++) {
+      const buf = watercolors[i];
+      if (buf) zip.file(`watercolor-${i}.png`, buf);
+    }
+    const blob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `drawing-${zipRequestId.replace("zip-", "")}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, []);
 
   const white: Color = {name: 'white', rgb: [255, 255, 255]};
   const black: Color = {name: 'black', rgb: [0, 0, 0]};
@@ -253,13 +289,63 @@ export default function HomePage() {
 
       if (event.data?.type === "saveCanvasButtonPressed") {
         triggerFullSave(false);
-        logEvent('save_canvas_button_pressed')
+        logEvent("save_canvas_button_pressed");
+      }
+
+      if (event.data?.type === "zipPsd") {
+        const { zipRequestId, buffer } = event.data;
+        if (!zipRequestId || !buffer) return;
+        if (!pendingZipRef.current[zipRequestId]) {
+          pendingZipRef.current[zipRequestId] = {
+            psd: null,
+            klecksPng: null,
+            watercolorCount: null,
+            watercolors: {},
+          };
+        }
+        pendingZipRef.current[zipRequestId].psd = buffer;
+        tryBuildZip(zipRequestId);
+      }
+      if (event.data?.type === "zipKlecksPng") {
+        const { zipRequestId, buffer } = event.data;
+        if (!zipRequestId || !buffer) return;
+        if (!pendingZipRef.current[zipRequestId]) {
+          pendingZipRef.current[zipRequestId] = {
+            psd: null,
+            klecksPng: null,
+            watercolorCount: null,
+            watercolors: {},
+          };
+        }
+        pendingZipRef.current[zipRequestId].klecksPng = buffer;
+        tryBuildZip(zipRequestId);
+      }
+      if (event.data?.type === "watercolorZipCount") {
+        const { zipRequestId, count } = event.data;
+        if (!zipRequestId || count == null) return;
+        if (!pendingZipRef.current[zipRequestId]) {
+          pendingZipRef.current[zipRequestId] = {
+            psd: null,
+            klecksPng: null,
+            watercolorCount: null,
+            watercolors: {},
+          };
+        }
+        pendingZipRef.current[zipRequestId].watercolorCount = count;
+        tryBuildZip(zipRequestId);
+      }
+      if (event.data?.type === "watercolorZipBlob") {
+        const { zipRequestId, index, buffer } = event.data;
+        if (!zipRequestId || buffer == null) return;
+        if (!pendingZipRef.current[zipRequestId]) return;
+        pendingZipRef.current[zipRequestId].watercolors[index] = buffer;
+        tryBuildZip(zipRequestId);
       }
     };
 
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, [sessionId, participantId]);  
+  }, [sessionId, participantId, tryBuildZip]);  
   
   const lastActivityRef = useRef(Date.now());
 
