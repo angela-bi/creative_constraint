@@ -42,6 +42,8 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
   const savedCanvasesRef = useRef<WatercolorRecord[]>([]);
   const [mounted, setMounted] = useState(false);
   const [savedCanvases, setSavedCanvases] = useState<WatercolorRecord[]>([]);
+  const [saveClicked, setSaveClicked] = useState(false);
+  const [clearClicked, setClearClicked] = useState(false);
   savedCanvasesRef.current = savedCanvases;
 
   function sendMessage(type: string, payload?: any) {
@@ -249,18 +251,34 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
       <div style={{ display: "flex", flexDirection: "row", gap: '10px'}}>
         <button
           onClick={() => {
+            setSaveClicked(true);
+            setTimeout(() => setSaveClicked(false), 200);
             window.postMessage({ type: "saveCanvasButtonPressed" }, "*");
           }}
-          style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
+          style={{
+            backgroundColor: saveClicked ? '#888' : 'lightgray',
+            borderRadius: '5px',
+            padding: '5px',
+            transform: saveClicked ? 'scale(0.97)' : 'scale(1)',
+            transition: 'background-color 0.1s, transform 0.1s',
+          }}
         >
           Save Canvas
         </button>
         <button
           onClick={() => {
+            setClearClicked(true);
+            setTimeout(() => setClearClicked(false), 200);
             sendMessage("clearCanvas");
             window.postMessage({ type: "canvasCleared" }, "*");
           }}
-          style={{backgroundColor: 'lightgray', borderRadius: '5px', padding: '5px'}}
+          style={{
+            backgroundColor: clearClicked ? '#888' : 'lightgray',
+            borderRadius: '5px',
+            padding: '5px',
+            transform: clearClicked ? 'scale(0.97)' : 'scale(1)',
+            transition: 'background-color 0.1s, transform 0.1s',
+          }}
         >
           Clear Canvas
         </button>
