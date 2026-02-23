@@ -147,6 +147,7 @@ window.DrawingSoftwareUtils = (function() {
     // Calculate new values
     state.newSize = Math.min(Math.max(0, state.prevSize + state.norm_size_change), 100);
     state.newOpacity = Math.min(Math.max(0, state.prevOpacity - state.norm_opacity_change), 1);
+    console.log('new opacity', state.newOpacity)
     state.newScatter = Math.min(Math.max(0, state.prevScatter + state.norm_scatter_change), 100);
 
     // Apply to Klecks

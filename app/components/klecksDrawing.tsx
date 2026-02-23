@@ -322,7 +322,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                   
                   //console.log('KL inside klecksdrawing', KL)
                   Utils.processPixelChanges(window.pixels, brushState, KL, {
-                    normalization: { size: 1200, opacity: 100, scatter: 300 },
+                    normalization: { size: 1200, opacity: 70, scatter: 300 },
                     smudgeMultiplier: -1.4,
                     onUpdate: (state) => {
                       syncFromBrushState();
