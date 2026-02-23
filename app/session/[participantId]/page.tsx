@@ -130,7 +130,7 @@ export default function HomePage() {
       // const tenMinutes = 10 * 60 * 1000;
       // const tenSeconds = 10 * 1000;
   
-      if (sessionId && now - lastActivityRef.current > TEN_MINUTES) {
+      if (sessionId && now - lastActivityRef.current > TEN_MINUTES) { // has the user done something in the last ____________?
         await fetch("/api/end-session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -141,7 +141,7 @@ export default function HomePage() {
   
         setSessionId(null);
       }
-    }, HALF_MINUTE); // how often we check
+    }, HALF_MINUTE); // checking this every ________
   
     return () => clearInterval(interval);
   }, [sessionId]);
@@ -153,15 +153,15 @@ export default function HomePage() {
     const interval = setInterval(() => {
       const now = Date.now();
   
-      const userIsActive = now - lastActivityRef.current < HALF_MINUTE;
-      const enoughTimeSinceLastSave = now - lastSaveRef.current > HALF_MINUTE;
+      const userIsActive = now - lastActivityRef.current < TEN_MINUTES; // has the user done something in the last _________?
+      const enoughTimeSinceLastSave = now - lastSaveRef.current > HALF_MINUTE; // has it been __________ since the last save?
   
       if (userIsActive && enoughTimeSinceLastSave) {
         console.log('autosaving')
         logEvent('autosaving')
         triggerFullSave(true);
       }
-    }, HALF_MINUTE);
+    }, HALF_MINUTE); // checking this every _________
   
     return () => clearInterval(interval);
   }, [sessionId]);
