@@ -13,7 +13,7 @@ export async function POST(req: Request) {
       const base64 = watercolorPNG.replace(/^data:image\/(png|jpeg);base64,/, "");
       const buffer = Buffer.from(base64, "base64");
   
-      const filePath = `${participantId}/${timestamp}-watercolor.png`;
+      const filePath = `${participantId}/${participantId}-${timestamp}-watercolor.png`;
   
       const { error: uploadError } = await supabaseAdmin.storage
         .from("drawings")

@@ -13,7 +13,7 @@ export async function POST(req: Request) {
       const base64 = klecksPNG.replace(/^data:image\/(png|jpeg);base64,/, "");
       const buffer = Buffer.from(base64, "base64");
   
-      const filePath = `${participantId}/${timestamp}-klecks.png`;
+      const filePath = `${participantId}/${participantId}-${timestamp}-klecks.png`;
   
       const { error: uploadError } = await supabaseAdmin.storage
         .from("drawings")
