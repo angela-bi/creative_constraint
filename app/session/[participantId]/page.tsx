@@ -155,7 +155,7 @@ export default function HomePage() {
       const now = Date.now();
   
       const userIsActive = now - lastActivityRef.current < THIRTY_MINUTES; // has the user done something in the last _________?
-      const enoughTimeSinceLastSave = now - lastSaveRef.current > TEN_MINUTES; // has it been __________ since the last save?
+      const enoughTimeSinceLastSave = now - lastSaveRef.current > FIVE_MINUTES; // has it been __________ since the last save?
   
       if (userIsActive && enoughTimeSinceLastSave) {
         console.log('autosaving')
