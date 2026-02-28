@@ -393,7 +393,7 @@ export default function HomePage() {
   };
   
   return (
-    <main style={{ height: "100dvh", overflow: "hidden" }}>
+    <main style={{ minHeight: "100dvh", overflowY: "auto", overflowX: "hidden" }}>
       <div
         style={{
           display: "flex",
