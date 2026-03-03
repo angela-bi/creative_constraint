@@ -275,6 +275,7 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
                   aria-label="Delete canvas"
                   onClick={(e) => {
                     e.stopPropagation();
+                    window.postMessage({ type: "canvasDeleted", payload: { canvasId: canvas.id } }, "*");
                     setSavedCanvases((prev) => prev.filter((c) => c.id !== canvas.id));
                     if (selectedCanvasId === canvas.id) setSelectedCanvasId(null);
                   }}

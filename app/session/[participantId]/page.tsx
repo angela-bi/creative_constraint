@@ -281,6 +281,11 @@ export default function HomePage() {
         // triggerFullSave(true);
       }
 
+      if (event.data?.type === "canvasDeleted") {
+        const { canvasId } = event.data.payload;
+        logEvent("canvas_deleted", { canvasId });
+      }
+
       // if (event.data?.type === "watercolorCheckpointReady") {
       //   const { saveId } = event.data.payload;
       
