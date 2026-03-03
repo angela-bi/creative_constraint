@@ -35,25 +35,27 @@ function samplePixels() {
   let pointerX = 0;
   let pointerY = 0;
   let pointerPressure = 1.0;
-  
+  let brushstrokeStartedReported = false;
+
   function setupPointerSupport(canvasElt) {
     canvasElt.addEventListener('pointerdown', (e) => {
       isPointerDown = true;
-  
+      brushstrokeStartedReported = false;
+
       pointerX = e.offsetX;
       pointerY = e.offsetY;
       pointerPressure = e.pressure || 1.0;
-  
+
       prevMouseX = pointerX;
       prevMouseY = pointerY;
     });
-  
+
     canvasElt.addEventListener('pointermove', (e) => {
       pointerX = e.offsetX;
       pointerY = e.offsetY;
       pointerPressure = e.pressure || 1.0;
     });
-  
+
     canvasElt.addEventListener('pointerup', () => {
       isPointerDown = false;
     });
@@ -176,12 +178,16 @@ function samplePixels() {
       mouseY >= 0 &&
       mouseY <= height
     ) {
+      if (!brushstrokeStartedReported) {
+        brushstrokeStartedReported = true;
+        window.parent.postMessage({ type: "brushstrokeStarted" }, "*");
+      }
       // Send smudging active message when actively smudging
       if (brushMode === "smudge" && !isSmudging) {
         isSmudging = true;
         window.parent.postMessage({ type: "smudgingActive", payload: isSmudging }, "*");
       }
-      
+
       let distance = dist(prevMouseX, prevMouseY, pointerX, pointerY);
       let numPoints = floor(distance / 1); // larger number = more gaps and fewer points; these two lines from George Profenza, noted below.
       drawLinePoints(prevMouseX, prevMouseY, pointerX, pointerY, numPoints);

@@ -44,7 +44,14 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
   const [savedCanvases, setSavedCanvases] = useState<WatercolorRecord[]>([]);
   const [saveClicked, setSaveClicked] = useState(false);
   const [clearClicked, setClearClicked] = useState(false);
+  const [selectedCanvasId, setSelectedCanvasId] = useState<number | null>(null);
   savedCanvasesRef.current = savedCanvases;
+
+  useEffect(() => {
+    if (selectedCanvasId !== null && !savedCanvases.some((c) => c.id === selectedCanvasId)) {
+      setSelectedCanvasId(null);
+    }
+  }, [savedCanvases, selectedCanvasId]);
 
   function sendMessage(type: string, payload?: any) {
     iframeRef.current?.contentWindow?.postMessage({ type, payload }, "*");
@@ -89,6 +96,9 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
         pixelsRef.current = new Uint8ClampedArray(pixels);
         setFrameId(id => id + 1);
       }
+      if (event.data?.type === "brushstrokeStarted") {
+        setSelectedCanvasId(null);
+      }
       if (event.data?.type === "saveCanvasResponse") {
         let { pngData, saveId, isAuto } = event.data.payload;
 
@@ -106,9 +116,10 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
       }
       if (event.data?.type === "watercolorSavedToDB") {
         const { newRecord, isAuto } = event.data.payload;
-      
+
         if (!isAuto) {
           setSavedCanvases(prev => [newRecord, ...prev]);
+          setSelectedCanvasId(newRecord.id);
         }
       }
       if (event.data?.type === "requestAllWatercolorCanvases") {
@@ -235,17 +246,63 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
       <div>
         Previous versions
         <div style={{ overflowX: "auto", display: "flex", gap: "10px", padding: "10px" }}>
-          {savedCanvases.map((canvas) => (
-            <img 
-              key={canvas.id} 
-              src={canvas.signedUrl} 
-              style={{ height: "100px", borderRadius: "8px", border: "1px solid #ccc" }} 
-              onClick={() => {
-                window.postMessage({ type: "canvasSwitched", payload: { canvasId: canvas.id, signedUrl: canvas.signedUrl }  }, "*");
-                sendMessage("importPNG", canvas.signedUrl);
-              }}
-            />
-          ))}
+          {savedCanvases.map((canvas) => {
+            const isSelected = selectedCanvasId === canvas.id;
+            return (
+              <div
+                key={canvas.id}
+                style={{ position: "relative", flexShrink: 0 }}
+              >
+                <img
+                  src={canvas.signedUrl}
+                  style={{
+                    height: "100px",
+                    borderRadius: "8px",
+                    border: isSelected ? "3px solid #ccc" : "1px solid #ccc",
+                    transition: "border 0.2s ease",
+                    boxSizing: "border-box",
+                    cursor: "pointer",
+                    display: "block",
+                  }}
+                  onClick={() => {
+                    setSelectedCanvasId(canvas.id);
+                    window.postMessage({ type: "canvasSwitched", payload: { canvasId: canvas.id, signedUrl: canvas.signedUrl } }, "*");
+                    sendMessage("importPNG", canvas.signedUrl);
+                  }}
+                />
+                <button
+                  type="button"
+                  aria-label="Delete canvas"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSavedCanvases((prev) => prev.filter((c) => c.id !== canvas.id));
+                    if (selectedCanvasId === canvas.id) setSelectedCanvasId(null);
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: "4px",
+                    right: "4px",
+                    width: "20px",
+                    height: "20px",
+                    padding: 0,
+                    border: "none",
+                    borderRadius: "8px",
+                    backgroundColor: "rgba(0,0,0,0.4)",
+                    color: "white",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "14px",
+                    lineHeight: 1,
+                    fontWeight: "bold",
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "row", gap: '10px'}}>
@@ -269,6 +326,7 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
           onClick={() => {
             setClearClicked(true);
             setTimeout(() => setClearClicked(false), 200);
+            setSelectedCanvasId(null);
             sendMessage("clearCanvas");
             window.postMessage({ type: "canvasCleared" }, "*");
           }}
