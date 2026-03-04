@@ -25,6 +25,7 @@ export default function HomePage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const autoSaveRef = useRef(false);
   const lastSaveRef = useRef(0);
+  const lastAutoSaveRef = useRef(0);
 
   const saveBufferRef = useRef<Record<
     string,
@@ -155,14 +156,18 @@ export default function HomePage() {
       const now = Date.now();
   
       const userIsActive = now - lastActivityRef.current < THIRTY_MINUTES; // has the user done something in the last _________?
-      const enoughTimeSinceLastSave = now - lastSaveRef.current > FIVE_MINUTES; // has it been __________ since the last save?
+      const enoughTimeSinceLastSave = now - lastAutoSaveRef.current > FIVE_MINUTES; // has it been __________ since the last autosave?
+
+      // const userIsActive = now - lastActivityRef.current < HALF_MINUTE; // has the user done something in the last _________?
+      // const enoughTimeSinceLastSave = now - lastAutoSaveRef.current > TEN_SECONDS; // has it been __________ since the last save?
   
+      console.log('userIsActive', userIsActive, 'enoughTimeSinceLastSave', enoughTimeSinceLastSave)
       if (userIsActive && enoughTimeSinceLastSave) {
         console.log('autosaving')
         logEvent('autosaving')
         triggerFullSave(true);
       }
-    }, HALF_MINUTE); // checking this every _________
+    }, ONE_MINUTE); // checking this every _________
   
     return () => clearInterval(interval);
   }, [sessionId]);
@@ -177,6 +182,9 @@ export default function HomePage() {
   
     autoSaveRef.current = isAuto;
     lastSaveRef.current = Date.now();
+    if (isAuto == true) {
+      lastAutoSaveRef.current = Date.now();
+    }
   
     saveBufferRef.current[saveId] = {
       saveType: isAuto ? "auto" : "manual",
