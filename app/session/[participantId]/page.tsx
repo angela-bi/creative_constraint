@@ -117,7 +117,7 @@ export default function HomePage() {
     createSession();
   }, []);
 
-  const THIRTY_MINUTES = 10 * 60 * 1000;
+  const THIRTY_MINUTES = 30 * 60 * 1000;
   const TEN_MINUTES = 10 * 60 * 1000;
   const ONE_MINUTE = 60 * 1000;
   const TEN_SECONDS = 10 * 1000;
