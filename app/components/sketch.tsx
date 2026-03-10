@@ -245,13 +245,24 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
       </div>
       <div>
         Previous versions
-        <div style={{ overflowX: "auto", display: "flex", gap: "10px", padding: "10px" }}>
+        <div
+          className="saved-canvases-scroll"
+          style={{
+            overflowX: "scroll",
+            overflowY: "hidden",
+            display: "flex",
+            gap: "10px",
+            padding: "10px",
+            WebkitOverflowScrolling: "touch",
+            touchAction: "pan-x",
+          }}
+        >
           {savedCanvases.map((canvas) => {
             const isSelected = selectedCanvasId === canvas.id;
             return (
               <div
                 key={canvas.id}
-                style={{ position: "relative", flexShrink: 0 }}
+                style={{ position: "relative", flex: "0 0 auto" }}
               >
                 <img
                   src={canvas.signedUrl}
@@ -264,6 +275,7 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
                     cursor: "pointer",
                     display: "block",
                   }}
+                  draggable={false}
                   onClick={() => {
                     setSelectedCanvasId(canvas.id);
                     window.postMessage({ type: "canvasSwitched", payload: { canvasId: canvas.id, signedUrl: canvas.signedUrl } }, "*");
@@ -305,6 +317,19 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
             );
           })}
         </div>
+        <style>{`
+          .saved-canvases-scroll::-webkit-scrollbar {
+            height: 8px;
+          }
+          .saved-canvases-scroll::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.05);
+            border-radius: 4px;
+          }
+          .saved-canvases-scroll::-webkit-scrollbar-thumb {
+            background: rgba(100,100,100,0.6);
+            border-radius: 4px;
+          }
+        `}</style>
       </div>
       <div style={{ display: "flex", flexDirection: "row", gap: '10px'}}>
         <button
