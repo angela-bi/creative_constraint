@@ -3,6 +3,9 @@
 window.DrawingSoftwareUtils = (function() {
   'use strict';
 
+  // Canvas dimensions used by watercolor + analysis pipeline
+  const CANVAS_WIDTH = 450;
+
   // Default brush parameters
   const DEFAULT_BRUSH_PARAMS = {
     size: 4,
@@ -101,10 +104,10 @@ window.DrawingSoftwareUtils = (function() {
     state.scatter_change = 0;
 
     for (let i = 0; i < pixels.length; i += 4) {
-      const {x, y} = indexToXY(i, 500); // because array is 500x500x4
+      const {x, y} = indexToXY(i, CANVAS_WIDTH);
 
-      let curr_pixel = getPixel(pixels, 500, x, y);
-      let prev_pixel = getPixel(state.prevPixels, 500, x, y);
+      let curr_pixel = getPixel(pixels, CANVAS_WIDTH, x, y);
+      let prev_pixel = getPixel(state.prevPixels, CANVAS_WIDTH, x, y);
 
       if (pixel_is_different(prev_pixel, curr_pixel)) {
         let curr_ratio = solvePaintRatios(curr_pixel['r'], curr_pixel['g'], curr_pixel['b']);
