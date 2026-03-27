@@ -32,7 +32,9 @@ export default function HomePage() {
     { saveType: "manual" | "auto" | "switch",
       timestamp: number,
       klecks?: string,
-      watercolor?: string }
+      watercolor?: string,
+      klecksBrushParams?: { size: number; opacity: number; scatter: number }
+    }
   >>({});
 
   type ZipPending = {
@@ -232,6 +234,7 @@ export default function HomePage() {
         
         const savedWatercolor = await res.json();
         // console.log("Saved watercolor record:", savedWatercolor);
+        const klecksBrushParams = buffer.klecksBrushParams ?? null;
         if (isAuto && savedWatercolor?.id) {
           logEvent("canvas_autosaved", {
             canvasId: savedWatercolor.id,
@@ -242,7 +245,8 @@ export default function HomePage() {
           type: "watercolorSavedToDB",
           payload: {
             newRecord: savedWatercolor,
-            isAuto
+            isAuto,
+            klecksBrushParams,
           }
         }, "*");
       }
@@ -270,11 +274,12 @@ export default function HomePage() {
       }
       
       if (event.data?.type === "savetoDBklecks") {
-        const { klecksPNG, saveId, isAuto } = event.data.payload;
+        const { klecksPNG, saveId, isAuto, klecksBrushParams } = event.data.payload;
         const buffer = saveBufferRef.current[saveId];
         if (!buffer) return;
       
         buffer.klecks = klecksPNG;
+        buffer.klecksBrushParams = klecksBrushParams ?? buffer.klecksBrushParams;
       
         savePostRequest(saveId, isAuto)
       }

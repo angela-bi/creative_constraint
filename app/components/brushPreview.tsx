@@ -72,6 +72,12 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
         // Forward the message to the iframe
         iframeRef.current?.contentWindow?.postMessage({ type: "resetBrushParams" }, "*");
       }
+      if (event.data?.type === "restoreKlecksBrushParams") {
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: "restoreKlecksBrushParams", payload: event.data.payload },
+          "*"
+        );
+      }
     };
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
@@ -164,6 +170,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
             let lastBrushSize = 50;
             let brushReady = false;
             const pendingMsgs = [];
+            let pendingBrushRestore = null; // { size, opacity, scatter }
 
             const Utils = window.DrawingSoftwareUtils;
             
@@ -237,6 +244,15 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
 
                 case "updatePixels":
                   window.pixels = msg.payload.pixelsRef.current;
+
+                  if (pendingBrushRestore) {
+                    prevSize = pendingBrushRestore.size;
+                    prevOpacity = pendingBrushRestore.opacity;
+                    prevScatter = pendingBrushRestore.scatter;
+                    prevPixels = new Uint8ClampedArray(window.pixels);
+                    syncBrushState();
+                    pendingBrushRestore = null;
+                  }
                   
                   Utils.processPixelChanges(window.pixels, brushState, KL, {
                     normalization: { size: 1200, opacity: 70, scatter: 300 },
@@ -268,6 +284,9 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                       //console.log('new params preview', newSize, newOpacity, newScatter);
                     }
                   });
+                  break;
+                case "restoreKlecksBrushParams":
+                  pendingBrushRestore = msg.payload;
                   break;
               }
             }

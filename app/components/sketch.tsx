@@ -24,6 +24,7 @@ type WatercolorRecord = {
   id: number;
   signedUrl: string;
   saved_at: string;
+  klecksBrushParams?: { size: number; opacity: number; scatter: number } | null;
 };
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -115,10 +116,13 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
         );
       }
       if (event.data?.type === "watercolorSavedToDB") {
-        const { newRecord, isAuto } = event.data.payload;
+        const { newRecord, isAuto, klecksBrushParams } = event.data.payload;
 
         if (!isAuto) {
-          setSavedCanvases(prev => [newRecord, ...prev]);
+          setSavedCanvases((prev) => [
+            { ...newRecord, klecksBrushParams: klecksBrushParams ?? null },
+            ...prev,
+          ]);
           setSelectedCanvasId(newRecord.id);
         }
       }
@@ -278,6 +282,15 @@ export default function Sketch({ pixelsRef, setFrameId, colors, activeColor, set
                   draggable={false}
                   onClick={() => {
                     setSelectedCanvasId(canvas.id);
+                    if (canvas.klecksBrushParams) {
+                      window.postMessage(
+                        {
+                          type: "restoreKlecksBrushParams",
+                          payload: canvas.klecksBrushParams,
+                        },
+                        "*"
+                      );
+                    }
                     window.postMessage({ type: "canvasSwitched", payload: { canvasId: canvas.id, signedUrl: canvas.signedUrl } }, "*");
                     sendMessage("importPNG", canvas.signedUrl);
                   }}

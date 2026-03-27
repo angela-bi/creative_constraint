@@ -124,6 +124,12 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
         // Forward the message to the iframe
         iframeRef.current?.contentWindow?.postMessage({ type: "resetBrushParams" }, "*");
       }
+      if (event.data?.type === "restoreKlecksBrushParams") {
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: "restoreKlecksBrushParams", payload: event.data.payload },
+          "*"
+        );
+      }
       if (event.data?.type === "exportPSD") {
         const { psd, timestamp } = event.data.payload;
         downloadBlob(psd, `drawing-${timestamp}.psd`);
@@ -148,13 +154,14 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
         );
       }
       if (event.data?.type === "klecksPNGresponse") { // response back from klecks
-        const { png, saveId, isAuto } = event.data.payload;
+        const { png, saveId, isAuto, klecksBrushParams } = event.data.payload;
         window.postMessage({
           type: "savetoDBklecks",
           payload: {
             klecksPNG: png,
             saveId: saveId,
-            isAuto: isAuto
+            isAuto: isAuto,
+            klecksBrushParams: klecksBrushParams ?? null
           }
         }, "*");
       }
@@ -206,6 +213,7 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
             let lastBrushSize = 50;
             let brushReady = false;
             const pendingMsgs = [];
+            let pendingBrushRestore = null; // { size, opacity, scatter }
 
             const Utils = window.DrawingSoftwareUtils;
             
@@ -320,6 +328,15 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                 case "updatePixels":
                   window.pixels = msg.payload.pixelsRef.current;
                   
+                  if (pendingBrushRestore) {
+                    prevSize = pendingBrushRestore.size;
+                    prevOpacity = pendingBrushRestore.opacity;
+                    prevScatter = pendingBrushRestore.scatter;
+                    prevPixels = new Uint8ClampedArray(window.pixels);
+                    syncBrushState();
+                    pendingBrushRestore = null;
+                  }
+
                   //console.log('KL inside klecksdrawing', KL)
                   Utils.processPixelChanges(window.pixels, brushState, KL, {
                     normalization: { size: 1200, opacity: 70, scatter: 300 },
@@ -352,6 +369,12 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                     reader.readAsDataURL(blob);
                   });
 
+                  const brushParams = {
+                    size: brushState.newSize,
+                    opacity: brushState.newOpacity,
+                    scatter: brushState.newScatter,
+                  };
+
                   KL.getPNG().then(async (png) => {
                     const dataUrl = png instanceof Blob ? await blobToDataURL(png) : (typeof png === "string" ? png : null);
                     if (!dataUrl) return;
@@ -361,7 +384,8 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
                         payload: {
                           png: dataUrl,
                           saveId: saveId,
-                          isAuto: isAuto
+                          isAuto: isAuto,
+                          klecksBrushParams: brushParams,
                         }
                       },
                       "*"
@@ -370,6 +394,10 @@ const BrushPreview = forwardRef<KlecksDrawingRef, DrawingProps>(({ pixelsRef, fr
 
                   break;
                 }
+
+                case "restoreKlecksBrushParams":
+                  pendingBrushRestore = msg.payload;
+                  break;
 
               }
             }
