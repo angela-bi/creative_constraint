@@ -126,7 +126,7 @@ function samplePixels() {
         }, "*");
       }      
       if (type === "importPNG") {
-        clearCanvas();
+        // clearCanvas();
         importPNG(payload);
       }
       if (type === "updateColor") {
